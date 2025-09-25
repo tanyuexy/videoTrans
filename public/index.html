@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频人声转文本工具</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .main-container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        /* 工作流程选择区 */
+        .workflow-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .workflow-title {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .step-card {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .step-card.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+        }
+        
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            position: absolute;
+            top: -15px;
+            left: 15px;
+        }
+        
+        .step-content {
+            margin-left: 40px;
+            margin-top: 5px;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .step-description {
+            font-size: 14px;
+            color: #6c757d;
+            margin: 0;
+        }
+        
+        /* 功能模块卡片 */
+        .function-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .function-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+        }
+        
+        .function-header {
+            padding: 20px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .function-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .function-icon {
+            font-size: 24px;
+        }
+        
+        .function-toggle {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            padding: 5px 15px;
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .function-body {
+            padding: 25px;
+        }
+        
+        /* 上传区域 */
+        .upload-area {
+            border: 3px dashed #dee2e6;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #f8f9fa;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        /* 文件列表 */
+        .file-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .file-item {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        .file-item:hover {
+            border-color: #667eea;
+            background: #f1f3ff;
+        }
+        
+        .file-icon {
+            font-size: 24px;
+            color: #667eea;
+            margin-right: 12px;
+        }
+        
+        .file-info {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 2px;
+        }
+        
+        .file-size {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        /* 内容列表 */
+        .content-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .content-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #ffffff;
+            transition: all 0.3s ease;
+        }
+        
+        .content-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+        }
+        
+        .content-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .content-title {
+            font-weight: 600;
+            color: #495057;
+            margin: 0;
+        }
+        
+        .content-badge {
+            font-size: 11px;
+            padding: 4px 8px;
+        }
+        
+        .content-text {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 80px;
+            margin-bottom: 10px;
+        }
+        
+        .content-text textarea {
+            width: 100%;
+            border: none;
+            outline: none;
+            resize: vertical;
+            background: transparent;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .content-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        /* 语言选择器 */
+        .language-selector {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .language-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .language-option {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .language-option:hover {
+            border-color: #667eea;
+            background: #f1f3ff;
+        }
+        
+        .language-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+        }
+        
+        .language-flag {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .language-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        /* 进度条 */
+        .progress-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+        
+        .progress-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .progress-spinner {
+            color: #667eea;
+        }
+        
+        .progress-text {
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        /* 按钮样式 */
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-outline-primary {
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-primary:hover {
+            background: #667eea;
+            border-color: #667eea;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .function-card {
+                margin-bottom: 15px;
+            }
+            
+            .function-header {
+                padding: 15px 20px;
+            }
+            
+            .function-body {
+                padding: 20px;
+            }
+            
+            .language-grid {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            }
+        }
+        
+        /* 滚动条样式 */
+        .file-list::-webkit-scrollbar,
+        .content-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .file-list::-webkit-scrollbar-track,
+        .content-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .file-list::-webkit-scrollbar-thumb,
+        .content-list::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        .file-list::-webkit-scrollbar-thumb:hover,
+        .content-list::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- 工作流程选择区 -->
+        <div class="workflow-section">
+            <h2 class="workflow-title">🚀 智能工作流程</h2>
+            <p class="text-muted mb-4">选择您需要的功能步骤，系统将自动执行完整流程</p>
+            
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="step-card" id="step1Card">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enableStep1" checked>
+                                <label class="form-check-label step-title" for="enableStep1">
+                                    视频提取音频
+                                </label>
+                            </div>
+                            <p class="step-description">从视频文件中提取高质量音频</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="step-card" id="step2Card">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enableStep2" checked>
+                                <label class="form-check-label step-title" for="enableStep2">
+                                    音频转文案
+                                </label>
+                            </div>
+                            <p class="step-description">使用AI将音频转录为文字</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="step-card" id="step3Card">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enableStep3">
+                                <label class="form-check-label step-title" for="enableStep3">
+                                    文本翻译
+                                </label>
+                            </div>
+                            <p class="step-description">翻译为多种目标语言</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="step-card" id="step4Card">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enableStep4">
+                                <label class="form-check-label step-title" for="enableStep4">
+                                    生成语音
+                                </label>
+                            </div>
+                            <p class="step-description">生成自然流畅的语音文件</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <button class="btn btn-primary btn-lg" id="startWorkflowBtn" onclick="startWorkflow()">
+                    <i class="bi bi-play-circle me-2"></i>开始工作流程
+                </button>
+            </div>
+        </div>
+
+        <!-- 功能模块区 -->
+        <div class="row">
+            <!-- 模块1：视频提取音频 -->
+            <div class="col-lg-6 mb-4">
+                <div class="function-card" id="videoToAudioCard">
+                    <div class="function-header">
+                        <h3 class="function-title">
+                            <i class="bi bi-camera-video function-icon"></i>
+                            视频提取音频
+                        </h3>
+                        <span class="function-toggle">独立使用</span>
+                    </div>
+                    <div class="function-body">
+                        <!-- 视频上传区域 -->
+                        <div class="upload-area" id="videoUploadArea">
+                            <div class="upload-icon">
+                                <i class="bi bi-cloud-upload"></i>
+                            </div>
+                            <h5>拖拽视频文件到这里</h5>
+                            <p class="text-muted mb-3">或点击选择文件 • 支持批量上传</p>
+                            <input type="file" class="d-none" id="videoFileInput" accept="video/*" multiple>
+                            <button class="btn btn-primary" onclick="document.getElementById('videoFileInput').click()">
+                                <i class="bi bi-folder-plus me-2"></i>选择视频文件
+                            </button>
+                            <div class="mt-3">
+                                <small class="text-muted">支持格式: MP4, AVI, MOV, WMV, MKV, WebM</small>
+                            </div>
+                        </div>
+
+                        <!-- 已选择的视频文件 -->
+                        <div id="selectedVideoFiles" style="display: none;">
+                            <h6 class="mt-4 mb-3">已选择的文件 (<span id="videoFileCount">0</span>)</h6>
+                            <div class="file-list" id="videoFilesList"></div>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <button class="btn btn-outline-danger btn-sm" onclick="clearVideoFiles()">
+                                    <i class="bi bi-trash me-1"></i>清空列表
+                                </button>
+                                <button class="btn btn-success" id="extractAudioBtn" onclick="extractAudioFromVideos()">
+                                    <i class="bi bi-music-note me-2"></i>提取音频
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 处理进度 -->
+                        <div id="videoProcessProgress" class="progress-section" style="display: none;">
+                            <div class="progress-header">
+                                <div class="spinner-border spinner-border-sm progress-spinner"></div>
+                                <span class="progress-text" id="videoProgressText">正在处理...</span>
+                            </div>
+                            <div class="progress mb-2">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     id="videoProgressBar" style="width: 0%"></div>
+                            </div>
+                            <small class="text-muted" id="videoProgressStatus">准备中...</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 模块2：音频转文案 -->
+            <div class="col-lg-6 mb-4">
+                <div class="function-card" id="audioToTextCard">
+                    <div class="function-header">
+                        <h3 class="function-title">
+                            <i class="bi bi-mic function-icon"></i>
+                            音频转文案
+                        </h3>
+                        <span class="function-toggle">独立使用</span>
+                    </div>
+                    <div class="function-body">
+                        <!-- 音频上传区域 -->
+                        <div class="upload-area" id="audioUploadArea">
+                            <div class="upload-icon">
+                                <i class="bi bi-music-note-beamed"></i>
+                            </div>
+                            <h5>选择音频文件</h5>
+                            <p class="text-muted mb-3">支持MP3、WAV、AAC等格式</p>
+                            <input type="file" class="d-none" id="audioFileInput" accept="audio/*" multiple>
+                            <button class="btn btn-primary" onclick="document.getElementById('audioFileInput').click()">
+                                <i class="bi bi-file-earmark-music me-2"></i>选择音频文件
+                            </button>
+                        </div>
+
+                        <!-- 音频文件列表 -->
+                        <div class="content-list" id="audioFilesList">
+                            <div class="text-center text-muted" id="audioEmptyState">
+                                <i class="bi bi-music-note-list" style="font-size: 32px; opacity: 0.5;"></i>
+                                <p class="mt-2">暂无音频文件</p>
+                                <small>上传音频文件或从视频提取音频</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 模块3：文本翻译 -->
+            <div class="col-lg-6 mb-4">
+                <div class="function-card" id="textTranslateCard">
+                    <div class="function-header">
+                        <h3 class="function-title">
+                            <i class="bi bi-translate function-icon"></i>
+                            文本翻译
+                        </h3>
+                        <span class="function-toggle">独立使用</span>
+                    </div>
+                    <div class="function-body">
+                        <!-- 多语言选择器 -->
+                        <div class="language-selector">
+                            <h6 class="mb-0">选择目标语言 (可多选)</h6>
+                            <div class="language-grid" id="languageGrid">
+                                <div class="language-option" data-lang="US">
+                                    <div class="language-flag">🇺🇸</div>
+                                    <div class="language-name">英语</div>
+                                </div>
+                                <div class="language-option" data-lang="ES">
+                                    <div class="language-flag">🇪🇸</div>
+                                    <div class="language-name">西班牙语</div>
+                                </div>
+                                <div class="language-option" data-lang="PT">
+                                    <div class="language-flag">🇧🇷</div>
+                                    <div class="language-name">葡萄牙语</div>
+                                </div>
+                                <div class="language-option" data-lang="FR">
+                                    <div class="language-flag">🇫🇷</div>
+                                    <div class="language-name">法语</div>
+                                </div>
+                                <div class="language-option" data-lang="DE">
+                                    <div class="language-flag">🇩🇪</div>
+                                    <div class="language-name">德语</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 文案列表 -->
+                        <div class="content-list" id="transcriptionsList">
+                            <div class="text-center text-muted" id="transcriptionsEmptyState">
+                                <i class="bi bi-file-text" style="font-size: 32px; opacity: 0.5;"></i>
+                                <p class="mt-2">暂无文案内容</p>
+                                <small>转录音频文件或手动添加文案</small>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <button class="btn btn-outline-primary btn-sm me-2" onclick="addManualText()">
+                                <i class="bi bi-plus-circle me-1"></i>手动添加文案
+                            </button>
+                            <button class="btn btn-success" id="batchTranslateBtn" onclick="batchTranslateTexts()" disabled>
+                                <i class="bi bi-globe me-2"></i>批量翻译
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 模块4：文本生成语音 -->
+            <div class="col-lg-6 mb-4">
+                <div class="function-card" id="textToSpeechCard">
+                    <div class="function-header">
+                        <h3 class="function-title">
+                            <i class="bi bi-volume-up function-icon"></i>
+                            文本生成语音
+                        </h3>
+                        <span class="function-toggle">独立使用</span>
+                    </div>
+                    <div class="function-body">
+                        <!-- 语音设置 -->
+                        <div class="language-selector">
+                            <h6 class="mb-2">语音设置</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">语音类型</label>
+                                    <select class="form-select" id="voiceTypeSelect">
+                                        <option value="Kore">Kore - 坚定</option>
+                                        <option value="Puck">Puck - 欢快</option>
+                                        <option value="Zephyr">Zephyr - 明亮</option>
+                                        <option value="Charon">Charon - 信息丰富</option>
+                                        <option value="Leda">Leda - 青春</option>
+                                        <option value="Aoede">Aoede - 轻松</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">输出语言</label>
+                                    <select class="form-select" id="outputLanguageSelect">
+                                        <option value="">自动检测</option>
+                                        <option value="US">英语</option>
+                                        <option value="ES">西班牙语</option>
+                                        <option value="PT">葡萄牙语</option>
+                                        <option value="FR">法语</option>
+                                        <option value="DE">德语</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 文本列表 -->
+                        <div class="content-list" id="textsList">
+                            <div class="text-center text-muted" id="textsEmptyState">
+                                <i class="bi bi-chat-text" style="font-size: 32px; opacity: 0.5;"></i>
+                                <p class="mt-2">暂无文本内容</p>
+                                <small>翻译文案或手动添加文本</small>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <button class="btn btn-success" id="batchGenerateSpeechBtn" onclick="batchGenerateSpeech()" disabled>
+                                <i class="bi bi-mic me-2"></i>批量生成语音
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结果展示区 -->
+        <div class="function-card" id="resultsCard">
+            <div class="function-header">
+                <h3 class="function-title">
+                    <i class="bi bi-collection function-icon"></i>
+                    处理结果
+                </h3>
+                <span class="function-toggle">
+                    <button class="btn btn-outline-light btn-sm" onclick="clearAllResults()">
+                        <i class="bi bi-trash me-1"></i>清空所有
+                    </button>
+                </span>
+            </div>
+            <div class="function-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>音频文件</h6>
+                        <div class="content-list" id="audioResultsList">
+                            <div class="text-center text-muted">
+                                <i class="bi bi-file-music" style="font-size: 24px; opacity: 0.5;"></i>
+                                <p class="mt-2 mb-0">暂无音频文件</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>转录文案</h6>
+                        <div class="content-list" id="transcriptResultsList">
+                            <div class="text-center text-muted">
+                                <i class="bi bi-file-text" style="font-size: 24px; opacity: 0.5;"></i>
+                                <p class="mt-2 mb-0">暂无转录文案</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>生成语音</h6>
+                        <div class="content-list" id="speechResultsList">
+                            <div class="text-center text-muted">
+                                <i class="bi bi-volume-up" style="font-size: 24px; opacity: 0.5;"></i>
+                                <p class="mt-2 mb-0">暂无生成语音</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
