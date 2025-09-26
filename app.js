@@ -9,7 +9,7 @@ import { dirname } from 'path';
 import { extractAudioFromVideoAdaptive, checkFFmpegAvailability } from './utils/audioExtractor.js';
 import { transcribeWithGemini, validateGeminiConfig } from './utils/geminiTranscriber.js';
 import { translateText, getSupportedLanguages } from './utils/geminiTranslator.js';
-import { generateSpeech, validateTTSConfig } from './utils/geminiTTS.js';
+import { generateSpeech, validateTTSConfig, getVoiceOptions, getVoiceOptionsWithDescriptions } from './utils/geminiTTS.js';
 
 // ES模块中获取__dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -307,6 +307,78 @@ app.get('/api/supported-languages', (req, res) => {
   }
 });
 
+// 获取支持的语音选项列表
+app.get('/api/voice-options', (req, res) => {
+  try {
+    const voicesWithDescriptions = getVoiceOptionsWithDescriptions();
+    res.json({
+      success: true,
+      voices: voicesWithDescriptions
+    });
+  } catch (error) {
+    console.error('获取语音选项失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取语音选项失败',
+      details: error.message
+    });
+  }
+});
+
+// 语音试听API - 返回指定语音的试听样本
+app.get('/api/voice-sample/:voiceName', (req, res) => {
+  try {
+    const { voiceName } = req.params;
+    
+    // 验证语音名称
+    const voiceOptions = getVoiceOptions();
+    if (!voiceOptions.includes(voiceName)) {
+      return res.status(400).json({
+        success: false,
+        error: '无效的语音名称'
+      });
+    }
+    
+    // 构建试听文件路径
+    const sampleFileName = `voice_sample_${voiceName}.wav`;
+    const sampleFilePath = path.join(__dirname, 'soundcheck', sampleFileName);
+    
+    // 检查文件是否存在
+    if (!fs.existsSync(sampleFilePath)) {
+      return res.status(404).json({
+        success: false,
+        error: '语音样本文件不存在'
+      });
+    }
+    
+    // 设置响应头
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Content-Disposition', `inline; filename="${sampleFileName}"`);
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // 缓存1小时
+    
+    // 发送文件
+    res.sendFile(sampleFilePath, (err) => {
+      if (err) {
+        console.error('发送语音样本文件失败:', err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            error: '发送语音样本文件失败'
+          });
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('语音试听API错误:', error);
+    res.status(500).json({
+      success: false,
+      error: '语音试听失败',
+      details: error.message
+    });
+  }
+});
+
 // 语音生成端点
 app.post('/api/generate-speech', async (req, res) => {
   try {
@@ -342,9 +414,19 @@ app.post('/api/generate-speech', async (req, res) => {
       });
     }
     
-    // 2. 生成音频文件名
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-    const baseFileName = `tts_${targetLanguage}_${voiceName}_${timestamp}`;
+    // 2. 生成音频文件名 - 格式：月日_语言_序号
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const dateStr = `${month}${day}`;
+    
+    // 获取同语言文件的序号
+    const existingFiles = fs.readdirSync(outputDir).filter(file => 
+      file.startsWith(`${dateStr}_${targetLanguage}_`) && file.endsWith('.wav')
+    );
+    const sequenceNumber = existingFiles.length + 1;
+    
+    const baseFileName = `${dateStr}_${targetLanguage}_${sequenceNumber}`;
     const audioFileName = `${baseFileName}.wav`;
     const audioPath = path.join(outputDir, audioFileName);
     

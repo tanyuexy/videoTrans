@@ -3,6 +3,7 @@ import {
 } from "@google/genai";
 import fs from "fs-extra";
 import path from "path";
+import wav from "wav";
 
 let apiKey =
   process.env.GEMINI_API_KEY || "AIzaSyChLKS2TbigTTYsEP7i_-AHy8I4J6gkxM8";
@@ -19,14 +20,71 @@ const VOICE_OPTIONS = [
   'Achird', 'Zubenelgenubi', 'Vindemiatrix', 'Sadachbia', 'Sadaltager', 'Sulafat'
 ];
 
-// 语言对应的推荐语音
-const LANGUAGE_VOICE_MAP = {
-  'en-US': ['Kore', 'Puck', 'Zephyr', 'Charon'],
-  'es-US': ['Leda', 'Aoede', 'Fenrir', 'Orus'],
-  'pt-BR': ['Callirrhoe', 'Autonoe', 'Enceladus', 'Iapetus'],
-  'fr-FR': ['Umbriel', 'Algieba', 'Despina', 'Erinome'],
-  'de-DE': ['Algenib', 'Rasalgethi', 'Laomedeia', 'Achernar']
+// 语音特点描述映射表
+const VOICE_DESCRIPTIONS = {
+  'Zephyr': '明亮',
+  'Puck': '欢快',
+  'Charon': '信息丰富',
+  'Kore': '坚定',
+  'Fenrir': 'Excitable',
+  'Leda': '青春',
+  'Orus': '公司',
+  'Aoede': 'Breezy',
+  'Callirrhoe': '轻松',
+  'Autonoe': '明亮',
+  'Enceladus': '气势',
+  'Iapetus': '清晰',
+  'Umbriel': '随和',
+  'Algieba': '平滑',
+  'Despina': '平滑',
+  'Erinome': '清除',
+  'Algenib': 'Gravelly',
+  'Rasalgethi': '信息丰富',
+  'Laomedeia': '欢快',
+  'Achernar': '软',
+  'Alnilam': 'Firm',
+  'Schedar': 'Even',
+  'Gacrux': '成人',
+  'Pulcherrima': '直率',
+  'Achird': '友好',
+  'Zubenelgenubi': '随意',
+  'Vindemiatrix': '温柔',
+  'Sadachbia': '活泼',
+  'Sadaltager': '知识渊博',
+  'Sulafat': '编高'
 };
+
+
+/**
+ * 保存WAV文件
+ * @param {string} filename - 文件路径
+ * @param {Buffer} pcmData - PCM音频数据
+ * @param {number} channels - 声道数，默认1
+ * @param {number} rate - 采样率，默认24000
+ * @param {number} sampleWidth - 采样位深，默认2 (16位)
+ * @returns {Promise<void>}
+ */
+async function saveWaveFile(
+  filename,
+  pcmData,
+  channels = 1,
+  rate = 24000,
+  sampleWidth = 2,
+) {
+  return new Promise((resolve, reject) => {
+    const writer = new wav.FileWriter(filename, {
+      channels,
+      sampleRate: rate,
+      bitDepth: sampleWidth * 8,
+    });
+
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+
+    writer.write(pcmData);
+    writer.end();
+  });
+}
 
 /**
  * 获取支持的语音选项
@@ -37,13 +95,17 @@ function getVoiceOptions() {
 }
 
 /**
- * 根据语言获取推荐的语音
- * @param {string} languageCode - 语言代码 (如: en-US, es-US等)
- * @returns {string[]} 推荐的语音数组
+ * 获取带描述的语音选项
+ * @returns {Object[]} 包含语音名称和描述的对象数组
  */
-function getRecommendedVoices(languageCode) {
-  return LANGUAGE_VOICE_MAP[languageCode] || LANGUAGE_VOICE_MAP['en-US'];
+function getVoiceOptionsWithDescriptions() {
+  return VOICE_OPTIONS.map(voice => ({
+    name: voice,
+    description: VOICE_DESCRIPTIONS[voice] || voice,
+    displayName: `${voice} - ${VOICE_DESCRIPTIONS[voice] || voice}`
+  }));
 }
+
 
 /**
  * 验证语音选项是否有效
@@ -120,8 +182,16 @@ async function generateSpeech(text, voiceName = 'Kore', outputPath) {
     const outputDir = path.dirname(outputPath);
     await fs.ensureDir(outputDir);
 
-    // 保存音频文件
-    await fs.writeFile(outputPath, audioBuffer);
+    // 根据文件扩展名选择保存方式
+    const fileExtension = path.extname(outputPath).toLowerCase();
+    
+    if (fileExtension === '.wav') {
+      // 使用WAV库保存WAV文件，确保正确的格式
+      await saveWaveFile(outputPath, audioBuffer, 1, 24000, 2);
+    } else {
+      // 对于其他格式（如MP3），直接保存buffer
+      await fs.writeFile(outputPath, audioBuffer);
+    }
 
     const fileSizeInMB = audioBuffer.length / (1024 * 1024);
     console.log(`语音生成完成: ${outputPath} (${fileSizeInMB.toFixed(2)}MB)`);
@@ -235,8 +305,15 @@ async function generateMultiSpeakerSpeech(text, speakerConfigs, outputPath) {
     const outputDir = path.dirname(outputPath);
     await fs.ensureDir(outputDir);
 
-    // 保存音频文件
-    await fs.writeFile(outputPath, audioBuffer);
+    // 根据文件扩展名选择保存方式
+    const fileExtension = path.extname(outputPath).toLowerCase();
+    
+    if (fileExtension === '.wav') {
+      // 使用WAV库保存WAV文件，确保正确的格式
+      await saveWaveFile(outputPath, audioBuffer, 1, 24000, 2);
+    } else {
+      throw new Error("文件扩展名必须为.wav");
+    }
 
     const fileSizeInMB = audioBuffer.length / (1024 * 1024);
     console.log(`多说话者语音生成完成: ${outputPath} (${fileSizeInMB.toFixed(2)}MB)`);
@@ -281,10 +358,11 @@ async function validateTTSConfig() {
 export { 
   generateSpeech, 
   generateMultiSpeakerSpeech,
-  getVoiceOptions, 
-  getRecommendedVoices, 
+  getVoiceOptions,
+  getVoiceOptionsWithDescriptions,
   isValidVoice,
   validateTTSConfig,
+  saveWaveFile,
   VOICE_OPTIONS,
-  LANGUAGE_VOICE_MAP
+  VOICE_DESCRIPTIONS
 };

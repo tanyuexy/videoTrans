@@ -1,0 +1,189 @@
+{
+  "testText": "All is well",
+  "totalVoices": 30,
+  "successCount": 30,
+  "errorCount": 0,
+  "results": [
+    {
+      "voice": "Zephyr",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Zephyr.wav",
+      "error": null
+    },
+    {
+      "voice": "Puck",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Puck.wav",
+      "error": null
+    },
+    {
+      "voice": "Charon",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Charon.wav",
+      "error": null
+    },
+    {
+      "voice": "Kore",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Kore.wav",
+      "error": null
+    },
+    {
+      "voice": "Fenrir",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Fenrir.wav",
+      "error": null
+    },
+    {
+      "voice": "Leda",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Leda.wav",
+      "error": null
+    },
+    {
+      "voice": "Orus",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Orus.wav",
+      "error": null
+    },
+    {
+      "voice": "Aoede",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Aoede.wav",
+      "error": null
+    },
+    {
+      "voice": "Callirrhoe",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Callirrhoe.wav",
+      "error": null
+    },
+    {
+      "voice": "Autonoe",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Autonoe.wav",
+      "error": null
+    },
+    {
+      "voice": "Enceladus",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Enceladus.wav",
+      "error": null
+    },
+    {
+      "voice": "Iapetus",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Iapetus.wav",
+      "error": null
+    },
+    {
+      "voice": "Umbriel",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Umbriel.wav",
+      "error": null
+    },
+    {
+      "voice": "Algieba",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Algieba.wav",
+      "error": null
+    },
+    {
+      "voice": "Despina",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Despina.wav",
+      "error": null
+    },
+    {
+      "voice": "Erinome",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Erinome.wav",
+      "error": null
+    },
+    {
+      "voice": "Algenib",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Algenib.wav",
+      "error": null
+    },
+    {
+      "voice": "Rasalgethi",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Rasalgethi.wav",
+      "error": null
+    },
+    {
+      "voice": "Laomedeia",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Laomedeia.wav",
+      "error": null
+    },
+    {
+      "voice": "Achernar",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Achernar.wav",
+      "error": null
+    },
+    {
+      "voice": "Alnilam",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Alnilam.wav",
+      "error": null
+    },
+    {
+      "voice": "Schedar",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Schedar.wav",
+      "error": null
+    },
+    {
+      "voice": "Gacrux",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Gacrux.wav",
+      "error": null
+    },
+    {
+      "voice": "Pulcherrima",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Pulcherrima.wav",
+      "error": null
+    },
+    {
+      "voice": "Achird",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Achird.wav",
+      "error": null
+    },
+    {
+      "voice": "Zubenelgenubi",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Zubenelgenubi.wav",
+      "error": null
+    },
+    {
+      "voice": "Vindemiatrix",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Vindemiatrix.wav",
+      "error": null
+    },
+    {
+      "voice": "Sadachbia",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Sadachbia.wav",
+      "error": null
+    },
+    {
+      "voice": "Sadaltager",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Sadaltager.wav",
+      "error": null
+    },
+    {
+      "voice": "Sulafat",
+      "status": "success",
+      "filePath": "soundcheck\\voice_sample_Sulafat.wav",
+      "error": null
+    }
+  ],
+  "generatedAt": "2025-09-25T10:50:46.955Z"
+}

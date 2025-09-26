@@ -1,1025 +1,1027 @@
-// 全局变量
-let selectedVideos = [];
-let audioFiles = [];
-let transcriptions = [];
-let translations = [];
-let speeches = [];
-let isProcessing = false;
-let selectedLanguages = [];
+// Vue.js 应用
+const { createApp, ref, reactive, computed, onMounted, nextTick } = Vue;
+const { ElMessage, ElMessageBox } = ElementPlus;
 
-// 初始化
-document.addEventListener('DOMContentLoaded', function() {
-    setupEventListeners();
-    setupLanguageSelector();
-    updateStepCards();
-    checkServerHealth();
-});
+// Element Plus 图标
+const {
+    VideoPlay,
+    VideoPause,
+    Upload,
+    UploadFilled,
+    VideoCamera,
+    Close,
+    Play,
+    Document,
+    Sort,
+    Plus,
+    CopyDocument,
+    Download,
+    Delete,
+    ChatDotSquare,
+    Microphone,
+    Headphone,
+    Volume
+} = ElementPlusIconsVue;
 
-// 设置事件监听器
-function setupEventListeners() {
-    // 工作流程步骤选择
-    ['enableStep1', 'enableStep2', 'enableStep3', 'enableStep4'].forEach(id => {
-        const checkbox = document.getElementById(id);
-        if (checkbox) {
-            checkbox.addEventListener('change', updateStepCards);
-        }
-    });
-
-    // 视频文件上传
-    const videoInput = document.getElementById('videoFileInput');
-    if (videoInput) {
-        videoInput.addEventListener('change', handleVideoFileSelect);
-    }
-    
-    // 视频拖拽
-    const videoUpload = document.getElementById('videoUploadArea');
-    if (videoUpload) {
-        videoUpload.addEventListener('dragover', handleDragOver);
-        videoUpload.addEventListener('dragleave', handleDragLeave);
-        videoUpload.addEventListener('drop', handleVideoDrop);
-        videoUpload.addEventListener('click', (e) => {
-            if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'I') {
-                videoInput.click();
-            }
+const app = createApp({
+    setup() {
+        // 响应式数据
+        const selectedVideos = ref([]);
+        const transcriptions = ref([]);
+        const translations = ref([]);
+        const audioList = ref([]);
+        const isProcessing = ref(false);
+        const progressText = ref('');
+        const progressPercentage = ref(0);
+        
+        // 翻译相关
+        const translateDialogVisible = ref(false);
+        const selectedLanguages = ref([]);
+        const isTranslating = ref(false);
+        
+        // 音频相关
+        const audioPlayerDialogVisible = ref(false);
+        const currentAudioTitle = ref('');
+        const currentAudioUrl = ref('');
+        const currentPlayingAudio = ref('');
+        const currentPlayingIndex = ref(-1);
+        const audioProgress = ref(0);
+        const currentTime = ref(0);
+        const audioDuration = ref(0);
+        
+        // 语音生成
+        const speechDialogVisible = ref(false);
+        const isGeneratingSpeech = ref(false);
+        const speechSettings = reactive({
+            voiceName: ''
         });
-    }
+        const availableVoices = ref([]);
+        
+        // 语音试听
+        const isPlayingVoiceSample = ref(false);
+        const voiceSampleAudio = ref(null);
+        
+        // 选择相关
+        const selectAll = ref(false);
+        const pendingTranslations = ref([]);
+        
+        // 原始文案选择相关
+        const selectAllTranscriptions = ref(false);
+        
+        // 音频选择相关
+        const selectAllAudio = ref(false);
 
-    // 音频文件上传
-    const audioInput = document.getElementById('audioFileInput');
-    if (audioInput) {
-        audioInput.addEventListener('change', handleAudioFileSelect);
-    }
-    
-    // 音频拖拽
-    const audioUpload = document.getElementById('audioUploadArea');
-    if (audioUpload) {
-        audioUpload.addEventListener('dragover', handleDragOver);
-        audioUpload.addEventListener('dragleave', handleDragLeave);
-        audioUpload.addEventListener('drop', handleAudioDrop);
-        audioUpload.addEventListener('click', (e) => {
-            if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'I') {
-                audioInput.click();
-            }
+        // 可用语言
+        const availableLanguages = ref([
+            { code: 'US', name: 'US', flag: 'US' },
+            { code: 'AR', name: 'AR', flag: 'AR' },
+            { code: 'BR', name: 'BR', flag: 'BR' },
+            { code: 'DE', name: 'DE', flag: 'DE' },
+            { code: 'ES', name: 'ES', flag: 'ES' },
+            { code: 'FR', name: 'FR', flag: 'FR' },
+            { code: 'ID', name: 'ID', flag: 'ID' },
+            { code: 'IT', name: 'IT', flag: 'IT' },
+            { code: 'JP', name: 'JP', flag: 'JP' },
+            { code: 'KR', name: 'KR', flag: 'KR' },
+            { code: 'NL', name: 'NL', flag: 'NL' },
+            { code: 'PL', name: 'PL', flag: 'PL' },
+            { code: 'TH', name: 'TH', flag: 'TH' },
+            { code: 'TR', name: 'TR', flag: 'TR' },
+            { code: 'TW', name: 'TW', flag: 'TW' },
+            { code: 'VN', name: 'VN', flag: 'VN' },
+            { code: 'RU', name: 'RU', flag: 'RU' },
+            { code: 'PT', name: 'PT', flag: 'PT' },
+            { code: 'SV', name: 'SV', flag: 'SV' },
+            { code: 'FI', name: 'FI', flag: 'FI' },
+            { code: 'MS', name: 'MS', flag: 'MS' },
+            { code: 'IN', name: 'IN', flag: 'IN' }
+        ]);
+
+
+        // 计算属性
+        const selectedTranscriptions = computed(() => {
+            return transcriptions.value.filter(item => item.selected);
         });
-    }
-}
 
-// 设置语言选择器
-function setupLanguageSelector() {
-    const languageGrid = document.getElementById('languageGrid');
-    if (!languageGrid) return;
-    
-    const languageOptions = languageGrid.querySelectorAll('.language-option');
-    languageOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            const lang = this.dataset.lang;
-            if (this.classList.contains('selected')) {
-                this.classList.remove('selected');
-                selectedLanguages = selectedLanguages.filter(l => l !== lang);
-            } else {
-                this.classList.add('selected');
-                selectedLanguages.push(lang);
-            }
-            updateTranslateButton();
+        const selectedTranslations = computed(() => {
+            return translations.value.filter(item => item.selected);
         });
-    });
-}
 
-// 更新步骤卡片样式
-function updateStepCards() {
-    ['step1Card', 'step2Card', 'step3Card', 'step4Card'].forEach((cardId, index) => {
-        const card = document.getElementById(cardId);
-        const checkbox = document.getElementById(`enableStep${index + 1}`);
-        if (card && checkbox) {
-            if (checkbox.checked) {
-                card.classList.add('active');
-            } else {
-                card.classList.remove('active');
-            }
-        }
-    });
-}
-
-// 拖拽处理
-function handleDragOver(e) {
-    e.preventDefault();
-    e.currentTarget.classList.add('dragover');
-}
-
-function handleDragLeave(e) {
-    e.preventDefault();
-    e.currentTarget.classList.remove('dragover');
-}
-
-function handleVideoDrop(e) {
-    e.preventDefault();
-    e.currentTarget.classList.remove('dragover');
-    const files = Array.from(e.dataTransfer.files).filter(isVideoFile);
-    if (files.length > 0) {
-        addVideoFiles(files);
-    }
-}
-
-function handleAudioDrop(e) {
-    e.preventDefault();
-    e.currentTarget.classList.remove('dragover');
-    const files = Array.from(e.dataTransfer.files).filter(isAudioFile);
-    if (files.length > 0) {
-        addAudioFiles(files);
-    }
-}
-
-// 文件类型检查
-function isVideoFile(file) {
-    const allowedTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm', 'video/mkv'];
-    return allowedTypes.includes(file.type);
-}
-
-function isAudioFile(file) {
-    const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/aac', 'audio/ogg', 'audio/mpeg', 'audio/mp4'];
-    return allowedTypes.includes(file.type);
-}
-
-// 视频文件处理
-function handleVideoFileSelect(e) {
-    const files = Array.from(e.target.files).filter(isVideoFile);
-    if (files.length > 0) {
-        addVideoFiles(files);
-    }
-    e.target.value = '';
-}
-
-function addVideoFiles(files) {
-    files.forEach(file => {
-        const exists = selectedVideos.some(v => v.name === file.name && v.size === file.size);
-        if (!exists) {
-            selectedVideos.push(file);
-        }
-    });
-    updateVideoFilesList();
-}
-
-function updateVideoFilesList() {
-    const filesList = document.getElementById('videoFilesList');
-    const selectedFiles = document.getElementById('selectedVideoFiles');
-    const fileCount = document.getElementById('videoFileCount');
-    const extractBtn = document.getElementById('extractAudioBtn');
-    
-    if (!filesList) return;
-    
-    filesList.innerHTML = '';
-    
-    selectedVideos.forEach((file, index) => {
-        const fileItem = document.createElement('div');
-        fileItem.className = 'file-item';
-        fileItem.innerHTML = `
-            <i class="bi bi-camera-video file-icon"></i>
-            <div class="file-info">
-                <div class="file-name">${file.name}</div>
-                <div class="file-size">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
-            </div>
-            <div class="file-actions">
-                <button class="btn btn-outline-danger btn-sm" onclick="removeVideoFile(${index})">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-        `;
-        filesList.appendChild(fileItem);
-    });
-
-    // 更新UI状态
-    const hasFiles = selectedVideos.length > 0;
-    if (selectedFiles) {
-        selectedFiles.style.display = hasFiles ? 'block' : 'none';
-    }
-    if (fileCount) {
-        fileCount.textContent = selectedVideos.length;
-    }
-    if (extractBtn) {
-        extractBtn.disabled = !hasFiles || isProcessing;
-    }
-}
-
-function removeVideoFile(index) {
-    selectedVideos.splice(index, 1);
-    updateVideoFilesList();
-}
-
-function clearVideoFiles() {
-    selectedVideos = [];
-    updateVideoFilesList();
-}
-
-// 音频文件处理
-function handleAudioFileSelect(e) {
-    const files = Array.from(e.target.files).filter(isAudioFile);
-    if (files.length > 0) {
-        addAudioFiles(files);
-    }
-    e.target.value = '';
-}
-
-function addAudioFiles(files) {
-    files.forEach(file => {
-        const audioId = 'audio_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        audioFiles.push({
-            id: audioId,
-            name: file.name,
-            file: file,
-            type: 'uploaded',
-            transcribed: false
+        const selectedAudios = computed(() => {
+            return audioList.value.filter(item => item.selected);
         });
-    });
-    updateAudioFilesList();
-}
 
-function updateAudioFilesList() {
-    const audioList = document.getElementById('audioFilesList');
-    if (!audioList) return;
-    
-    if (audioFiles.length === 0) {
-        audioList.innerHTML = `
-            <div class="text-center text-muted" id="audioEmptyState">
-                <i class="bi bi-music-note-list" style="font-size: 32px; opacity: 0.5;"></i>
-                <p class="mt-2">暂无音频文件</p>
-                <small>上传音频文件或从视频提取音频</small>
-            </div>
-        `;
-        return;
-    }
+        // 工具函数
+        const formatFileSize = (bytes) => {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        };
 
-    audioList.innerHTML = '';
-    
-    audioFiles.forEach((audio) => {
-        const audioItem = document.createElement('div');
-        audioItem.className = 'content-item';
-        audioItem.innerHTML = `
-            <div class="content-header">
-                <h6 class="content-title">${audio.name}</h6>
-                <span class="badge ${audio.transcribed ? 'bg-success' : 'bg-secondary'} content-badge">
-                    ${audio.transcribed ? '已转录' : '未转录'}
-                </span>
-            </div>
-            <div class="content-actions">
-                <button class="btn btn-outline-primary btn-sm" onclick="playAudio('${audio.id}')">
-                    <i class="bi bi-play me-1"></i>播放
-                </button>
-                <button class="btn btn-outline-success btn-sm" onclick="transcribeAudio('${audio.id}')" 
-                        ${audio.transcribed ? 'disabled' : ''}>
-                    <i class="bi bi-file-text me-1"></i>转录
-                </button>
-                <button class="btn btn-outline-danger btn-sm" onclick="removeAudio('${audio.id}')">
-                    <i class="bi bi-trash me-1"></i>删除
-                </button>
-            </div>
-        `;
-        audioList.appendChild(audioItem);
-    });
-}
+        const getLanguageName = (code) => {
+            const languageNames = {
+                'zh': '中文',
+                'US': 'US',
+                'AR': 'AR',
+                'BR': 'BR',
+                'DE': 'DE',
+                'ES': 'ES',
+                'FR': 'FR',
+                'ID': 'ID',
+                'IT': 'IT',
+                'JP': 'JP',
+                'KR': 'KR',
+                'NL': 'NL',
+                'PL': 'PL',
+                'TH': 'TH',
+                'TR': 'TR',
+                'TW': 'TW',
+                'VN': 'VN',
+                'RU': 'RU',
+                'PT': 'PT',
+                'SV': 'SV',
+                'FI': 'FI',
+                'MS': 'MS',
+                'IN': 'IN'
+            };
+            return languageNames[code] || code;
+        };
 
-// 转录列表更新
-function updateTranscriptionsList() {
-    const transcriptList = document.getElementById('transcriptionsList');
-    if (!transcriptList) return;
-    
-    if (transcriptions.length === 0) {
-        transcriptList.innerHTML = `
-            <div class="text-center text-muted" id="transcriptionsEmptyState">
-                <i class="bi bi-file-text" style="font-size: 32px; opacity: 0.5;"></i>
-                <p class="mt-2">暂无文案内容</p>
-                <small>转录音频文件或手动添加文案</small>
-            </div>
-        `;
-        updateTranslateButton();
-        return;
-    }
+        const getLanguageTagType = (code) => {
+            const tagTypes = {
+                'US': 'primary',
+                'AR': 'success',
+                'BR': 'warning',
+                'DE': 'danger',
+                'ES': 'success',
+                'FR': 'info',
+                'ID': 'primary',
+                'IT': 'warning',
+                'JP': 'danger',
+                'KR': 'success',
+                'NL': 'info',
+                'PL': 'primary',
+                'TH': 'warning',
+                'TR': 'danger',
+                'TW': 'success',
+                'VN': 'info',
+                'RU': 'primary',
+                'PT': 'warning',
+                'SV': 'danger',
+                'FI': 'success',
+                'MS': 'info',
+                'IN': 'primary'
+            };
+            return tagTypes[code] || 'info';
+        };
 
-    transcriptList.innerHTML = '';
-    
-    transcriptions.forEach((transcription, index) => {
-        const transcriptionItem = document.createElement('div');
-        transcriptionItem.className = 'content-item';
-        transcriptionItem.innerHTML = `
-            <div class="content-header">
-                <h6 class="content-title">文案 ${index + 1}</h6>
-                <span class="badge bg-info content-badge">中文</span>
-            </div>
-            <div class="content-text">
-                <textarea placeholder="编辑文案内容..." oninput="updateTranscription('${transcription.id}', this.value)">${transcription.text}</textarea>
-            </div>
-            <div class="content-actions">
-                <button class="btn btn-outline-primary btn-sm" onclick="copyText('${transcription.id}')">
-                    <i class="bi bi-copy me-1"></i>复制
-                </button>
-                <button class="btn btn-outline-success btn-sm" onclick="downloadText('${transcription.id}', '${transcription.source || 'transcription'}')">
-                    <i class="bi bi-download me-1"></i>下载
-                </button>
-                <button class="btn btn-outline-danger btn-sm" onclick="removeTranscription('${transcription.id}')">
-                    <i class="bi bi-trash me-1"></i>删除
-                </button>
-            </div>
-        `;
-        transcriptList.appendChild(transcriptionItem);
-    });
-    
-    updateTranslateButton();
-}
+        const generateId = () => {
+            return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        };
 
-// 翻译列表更新
-function updateTextsList() {
-    const textsList = document.getElementById('textsList');
-    if (!textsList) return;
-    
-    const allTexts = [...transcriptions, ...translations];
-    
-    if (allTexts.length === 0) {
-        textsList.innerHTML = `
-            <div class="text-center text-muted" id="textsEmptyState">
-                <i class="bi bi-chat-text" style="font-size: 32px; opacity: 0.5;"></i>
-                <p class="mt-2">暂无文本内容</p>
-                <small>翻译文案或手动添加文本</small>
-            </div>
-        `;
-        updateGenerateSpeechButton();
-        return;
-    }
+        // 视频上传相关方法
+        const handleVideoFileChange = (file, fileList) => {
+            selectedVideos.value = fileList;
+        };
 
-    textsList.innerHTML = '';
-    
-    allTexts.forEach((text, index) => {
-        const langName = getLanguageName(text.language || 'zh');
-        const textItem = document.createElement('div');
-        textItem.className = 'content-item';
-        textItem.innerHTML = `
-            <div class="content-header">
-                <h6 class="content-title">${text.source || '文本'} ${index + 1}</h6>
-                <span class="badge bg-info content-badge">${langName}</span>
-            </div>
-            <div class="content-text">
-                <textarea placeholder="编辑文本内容..." readonly>${text.text}</textarea>
-            </div>
-            <div class="content-actions">
-                <button class="btn btn-outline-success btn-sm" onclick="generateSpeechForText('${text.id}')">
-                    <i class="bi bi-mic me-1"></i>生成语音
-                </button>
-                <button class="btn btn-outline-primary btn-sm" onclick="copyText('${text.id}')">
-                    <i class="bi bi-copy me-1"></i>复制
-                </button>
-            </div>
-        `;
-        textsList.appendChild(textItem);
-    });
-    
-    updateGenerateSpeechButton();
-}
+        const beforeVideoUpload = (file) => {
+            const isVideo = file.type.startsWith('video/');
+            const isLt100M = file.size / 1024 / 1024 < 100;
 
-// 按钮状态更新
-function updateTranslateButton() {
-    const btn = document.getElementById('batchTranslateBtn');
-    if (btn) {
-        btn.disabled = transcriptions.length === 0 || selectedLanguages.length === 0;
-    }
-}
-
-function updateGenerateSpeechButton() {
-    const btn = document.getElementById('batchGenerateSpeechBtn');
-    if (btn) {
-        const allTexts = [...transcriptions, ...translations];
-        btn.disabled = allTexts.length === 0;
-    }
-}
-
-// 核心功能实现
-
-// 1. 视频提取音频
-async function extractAudioFromVideos() {
-    if (selectedVideos.length === 0 || isProcessing) return;
-    
-    isProcessing = true;
-    showProgress('video', true);
-    updateProgress('video', 0, '准备提取音频...');
-    
-    try {
-        for (let i = 0; i < selectedVideos.length; i++) {
-            const video = selectedVideos[i];
-            updateProgress('video', (i / selectedVideos.length) * 100, `正在处理: ${video.name}`);
-            
-            const formData = new FormData();
-            formData.append('video', video);
-            
-            const response = await fetch('/api/transcribe', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                throw new Error(`提取音频失败: ${response.statusText}`);
+            if (!isVideo) {
+                ElMessage.error('只能上传视频文件!');
+                return false;
             }
-            
-            // 处理流式响应
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let result = null;
-            
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
-                
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const data = JSON.parse(line.slice(6));
-                            if (data.type === 'complete') {
-                                result = data.data;
-                                // 添加提取的音频到列表
-                                addExtractedAudio(result.audioFileName, video.name);
+            if (!isLt100M) {
+                ElMessage.error('视频文件大小不能超过 100MB!');
+                return false;
+            }
+            return false; // 阻止自动上传
+        };
+
+        const removeVideoFile = (index) => {
+            selectedVideos.value.splice(index, 1);
+        };
+
+        // 视频转录处理
+        const processVideos = async () => {
+            if (selectedVideos.value.length === 0) {
+                ElMessage.warning('请先选择视频文件');
+                return;
+            }
+
+            isProcessing.value = true;
+            progressPercentage.value = 0;
+            progressText.value = '准备转录...';
+
+            try {
+                for (let i = 0; i < selectedVideos.value.length; i++) {
+                    const file = selectedVideos.value[i];
+                    progressText.value = `正在转录: ${file.name}`;
+                    progressPercentage.value = (i / selectedVideos.value.length) * 100;
+                    progressPercentage.value = progressPercentage.value.toFixed(2);
+                    const formData = new FormData();
+                    formData.append('video', file.raw);
+
+                    const response = await fetch('/api/transcribe', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`转录失败: ${response.statusText}`);
+                    }
+
+                    // 处理流式响应
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    if (data.type === 'complete') {
+                                        // 添加转录结果
+                                        addTranscription(data.data.transcription, file.name);
+                                    }
+                                } catch (e) {
+                                    console.error('解析数据失败:', e);
+                                }
                             }
-                        } catch (e) {
-                            console.error('解析数据失败:', e);
                         }
                     }
                 }
+
+                progressPercentage.value = 100;
+                progressText.value = '转录完成！';
+                ElMessage.success('所有视频转录完成！');
+
+            } catch (error) {
+                console.error('转录失败:', error);
+                ElMessage.error(`转录失败: ${error.message}`);
+            } finally {
+                isProcessing.value = false;
+                setTimeout(() => {
+                    progressPercentage.value = 0;
+                }, 2000);
             }
-        }
-        
-        updateProgress('video', 100, '音频提取完成！');
-        showSuccess('所有视频的音频提取完成！');
-        
-    } catch (error) {
-        console.error('提取音频失败:', error);
-        showError(`音频提取失败: ${error.message}`);
-    } finally {
-        isProcessing = false;
-        setTimeout(() => showProgress('video', false), 2000);
-    }
-}
+        };
 
-// 2. 音频转录
-async function transcribeAudio(audioId) {
-    const audio = audioFiles.find(a => a.id === audioId);
-    if (!audio || audio.transcribed) return;
-    
-    try {
-        let response;
-        if (audio.type === 'uploaded') {
-            // 上传的音频文件
-            const formData = new FormData();
-            formData.append('audio', audio.file);
+        // 文案管理方法
+        const addTranscription = (text, source) => {
+            transcriptions.value.push({
+                id: generateId(),
+                text: text,
+                source: source,
+                language: 'zh',
+                selected: false
+            });
+        };
+
+        const addManualText = async () => {
+            try {
+                const { value: text } = await ElMessageBox.prompt('请输入文案内容:', '新增文案', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    inputType: 'textarea',
+                    inputValidator: (value) => {
+                        if (!value || !value.trim()) {
+                            return '文案内容不能为空';
+                        }
+                        return true;
+                    }
+                });
+                addTranscription(text.trim(), '手动输入');
+                ElMessage.success('文案添加成功');
+            } catch (error) {
+                // 用户取消操作
+            }
+        };
+
+        const removeTranscription = async (index) => {
+            try {
+                await ElMessageBox.confirm('确定要删除这个文案吗？', '确认删除', {
+                    confirmButtonText: '删除',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                });
+                transcriptions.value.splice(index, 1);
+                ElMessage.success('文案删除成功');
+            } catch (error) {
+                // 用户取消操作
+            }
+        };
+
+        // 翻译相关方法
+        const showTranslateDialog = () => {
+            if (transcriptions.value.length === 0) {
+                ElMessage.warning('没有可翻译的文案');
+                return;
+            }
+            translateDialogVisible.value = true;
+        };
+
+        const handleTranslateDialogClose = (done) => {
+            selectedLanguages.value = [];
+            done();
+        };
+
+        const executeTranslation = async () => {
+            if (selectedLanguages.value.length === 0) {
+                ElMessage.warning('请选择至少一种目标语言');
+                return;
+            }
+
+            isTranslating.value = true;
+
+            try {
+                let completed = 0;
+                const total = transcriptions.value.length * selectedLanguages.value.length;
+
+                for (const transcription of transcriptions.value) {
+                    for (const lang of selectedLanguages.value) {
+                        const response = await fetch('/api/translate-text', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                text: transcription.text,
+                                targetLanguage: lang
+                            })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`翻译失败: ${response.statusText}`);
+                        }
+
+                        const result = await response.json();
+                        addTranslation(result.translatedText, lang, transcription.source);
+                        completed++;
+                    }
+                }
+
+                ElMessage.success(`批量翻译完成！共翻译 ${total} 项内容`);
+                translateDialogVisible.value = false;
+                selectedLanguages.value = [];
+
+            } catch (error) {
+                console.error('翻译失败:', error);
+                ElMessage.error(`翻译失败: ${error.message}`);
+            } finally {
+                isTranslating.value = false;
+            }
+        };
+
+        const addTranslation = (text, language, source) => {
+            translations.value.push({
+                id: generateId(),
+                text: text,
+                language: language,
+                source: source + ` (${getLanguageName(language)})`,
+                selected: false
+            });
+        };
+
+        const removeTranslation = async (index) => {
+            try {
+                await ElMessageBox.confirm('确定要删除这个翻译吗？', '确认删除', {
+                    confirmButtonText: '删除',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                });
+                translations.value.splice(index, 1);
+                updateSelectAll();
+                ElMessage.success('翻译删除成功');
+            } catch (error) {
+                // 用户取消操作
+            }
+        };
+
+        // 批量删除选中的翻译
+        const deleteSelectedTranslations = async () => {
+            const selected = selectedTranslations.value;
+            if (selected.length === 0) {
+                ElMessage.warning('请先选择要删除的翻译');
+                return;
+            }
+
+            try {
+                await ElMessageBox.confirm(`确定要删除选中的 ${selected.length} 个翻译吗？`, '确认删除', {
+                    confirmButtonText: '删除',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                });
+
+                // 从后往前删除，避免索引问题
+                for (let i = translations.value.length - 1; i >= 0; i--) {
+                    if (translations.value[i].selected) {
+                        translations.value.splice(i, 1);
+                    }
+                }
+
+                updateSelectAll();
+                ElMessage.success(`已删除 ${selected.length} 个翻译`);
+            } catch (error) {
+                // 用户取消操作
+            }
+        };
+
+        // 选择相关方法
+        const handleSelectAll = (value) => {
+            translations.value.forEach(item => {
+                item.selected = value;
+            });
+        };
+
+        const updateSelectAll = () => {
+            if (translations.value.length === 0) {
+                selectAll.value = false;
+                return;
+            }
+            selectAll.value = translations.value.every(item => item.selected);
+        };
+
+        // 原始文案选择相关方法
+        const handleSelectAllTranscriptions = (value) => {
+            transcriptions.value.forEach(item => {
+                item.selected = value;
+            });
+        };
+
+        const updateSelectAllTranscriptions = () => {
+            if (transcriptions.value.length === 0) {
+                selectAllTranscriptions.value = false;
+                return;
+            }
+            selectAllTranscriptions.value = transcriptions.value.every(item => item.selected);
+        };
+
+        // 批量删除选中的原始文案
+        const deleteSelectedTranscriptions = async () => {
+            const selected = selectedTranscriptions.value;
+            if (selected.length === 0) {
+                ElMessage.warning('请先选择要删除的文案');
+                return;
+            }
+
+            try {
+                await ElMessageBox.confirm(`确定要删除选中的 ${selected.length} 个文案吗？`, '确认删除', {
+                    confirmButtonText: '删除',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                });
+
+                // 从后往前删除，避免索引问题
+                for (let i = transcriptions.value.length - 1; i >= 0; i--) {
+                    if (transcriptions.value[i].selected) {
+                        transcriptions.value.splice(i, 1);
+                    }
+                }
+
+                updateSelectAllTranscriptions();
+                ElMessage.success(`已删除 ${selected.length} 个文案`);
+            } catch (error) {
+                // 用户取消操作
+            }
+        };
+
+        // 音频选择相关方法
+        const handleSelectAllAudio = (value) => {
+            audioList.value.forEach(item => {
+                item.selected = value;
+            });
+        };
+
+        const updateSelectAllAudio = () => {
+            if (audioList.value.length === 0) {
+                selectAllAudio.value = false;
+                return;
+            }
+            selectAllAudio.value = audioList.value.every(item => item.selected);
+        };
+
+        // 批量下载选中的音频
+        const downloadSelectedAudios = () => {
+            const selected = selectedAudios.value;
+            if (selected.length === 0) {
+                ElMessage.warning('请先选择要下载的音频文件');
+                return;
+            }
+
+            ElMessage.success(`开始下载 ${selected.length} 个音频文件`);
             
-            response = await fetch('/api/transcribe-audio', {
-                method: 'POST',
-                body: formData
+            selected.forEach(audio => {
+                downloadAudio(audio.fileName);
             });
-        } else {
-            // 提取的音频文件
-            response = await fetch('/api/transcribe-extracted-audio', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    audioName: audio.name,
-                    videoName: audio.source || 'unknown'
-                })
-            });
-        }
-        
-        if (!response.ok) {
-            throw new Error(`转录失败: ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        
-        // 添加转录结果
-        addTranscription(result.transcription, audio.name);
-        
-        // 更新音频状态
-        audio.transcribed = true;
-        updateAudioFilesList();
-        
-        showSuccess(`音频 "${audio.name}" 转录完成！`);
-        
-    } catch (error) {
-        console.error('转录失败:', error);
-        showError(`转录失败: ${error.message}`);
-    }
-}
+        };
 
-// 3. 批量翻译
-async function batchTranslateTexts() {
-    if (transcriptions.length === 0 || selectedLanguages.length === 0) return;
-    
-    try {
-        let completed = 0;
-        const total = transcriptions.length * selectedLanguages.length;
+        // 语音生成相关方法
+        const generateSelectedSpeech = () => {
+            const selected = selectedTranslations.value;
+            if (selected.length === 0) {
+                ElMessage.warning('请选择要生成语音的翻译文本');
+                return;
+            }
+            pendingTranslations.value = [...selected];
+            speechDialogVisible.value = true;
+        };
+
+        const generateSingleSpeech = (translation) => {
+            pendingTranslations.value = [translation];
+            speechDialogVisible.value = true;
+        };
+
+        const confirmGenerateSpeech = async () => {
+            if (pendingTranslations.value.length === 0) {
+                ElMessage.warning('没有要生成的语音');
+                return;
+            }
+
+            isGeneratingSpeech.value = true;
+
+            try {
+                for (const translation of pendingTranslations.value) {
+                    const response = await fetch('/api/generate-speech', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            text: translation.text,
+                            targetLanguage: translation.language,
+                            voiceName: speechSettings.voiceName,
+                            transcriptionId: translation.id
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`语音生成失败: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    addAudio(result.audioFileName, translation.source, translation.language);
+                }
+
+                ElMessage.success(`语音生成完成！共生成 ${pendingTranslations.value.length} 个语音文件`);
+                speechDialogVisible.value = false;
+                pendingTranslations.value = [];
+
+            } catch (error) {
+                console.error('语音生成失败:', error);
+                ElMessage.error(`语音生成失败: ${error.message}`);
+            } finally {
+                isGeneratingSpeech.value = false;
+            }
+        };
+
+        // 音频管理方法
+        const addAudio = (fileName, source, language) => {
+            audioList.value.push({
+                id: generateId(),
+                fileName: fileName,
+                source: source,
+                language: language,
+                selected: false
+            });
+        };
+
+        const toggleAudioPlayback = (fileName, index) => {
+            if (currentPlayingAudio.value === fileName) {
+                // 暂停当前音频
+                const audioElement = getAudioElement(currentPlayingIndex.value);
+                if (audioElement) {
+                    audioElement.pause();
+                }
+                currentPlayingAudio.value = '';
+                currentPlayingIndex.value = -1;
+            } else {
+                // 停止其他音频
+                if (currentPlayingAudio.value) {
+                    const prevAudioElement = getAudioElement(currentPlayingIndex.value);
+                    if (prevAudioElement) {
+                        prevAudioElement.pause();
+                    }
+                }
+                
+                // 播放新音频
+                currentPlayingAudio.value = fileName;
+                currentPlayingIndex.value = index;
+                
+                nextTick(() => {
+                    const audioElement = getAudioElement(index);
+                    if (audioElement) {
+                        audioElement.volume = 0.7; // 设置默认音量
+                        audioElement.play().catch(error => {
+                            console.error('音频播放失败:', error);
+                            ElMessage.error('音频播放失败，请检查文件是否存在');
+                        });
+                    }
+                });
+            }
+        };
+
+        const onAudioLoaded = () => {
+            const audioElement = getAudioElement(currentPlayingIndex.value);
+            if (audioElement) {
+                audioDuration.value = audioElement.duration;
+            }
+        };
+
+        const onTimeUpdate = () => {
+            const audioElement = getAudioElement(currentPlayingIndex.value);
+            if (audioElement) {
+                currentTime.value = audioElement.currentTime;
+                audioProgress.value = (audioElement.currentTime / audioElement.duration) * 100;
+            }
+        };
+
+        const onAudioEnded = () => {
+            currentPlayingAudio.value = '';
+            currentPlayingIndex.value = -1;
+            audioProgress.value = 0;
+            currentTime.value = 0;
+        };
+
+        const seekAudio = (event) => {
+            const audioElement = getAudioElement(currentPlayingIndex.value);
+            if (audioElement && audioDuration.value > 0) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const clickX = event.clientX - rect.left;
+                const percentage = clickX / rect.width;
+                const newTime = percentage * audioDuration.value;
+                audioElement.currentTime = newTime;
+            }
+        };
+
+        // 存储音频元素refs的对象
+        const audioRefs = ref({});
         
-        for (const transcription of transcriptions) {
-            for (const lang of selectedLanguages) {
-                const response = await fetch('/api/translate-text', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        text: transcription.text,
-                        targetLanguage: lang
-                    })
+        // 获取音频元素的帮助函数
+        const getAudioElement = (index) => {
+            if (index >= 0) {
+                const refName = 'audioPlayer' + index;
+                return audioRefs.value[refName];
+            }
+            return null;
+        };
+
+        const formatTime = (seconds) => {
+            if (!seconds || isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        };
+
+        const formatDuration = (seconds) => {
+            return formatTime(seconds);
+        };
+
+        const downloadAudio = (fileName) => {
+            const link = document.createElement('a');
+            link.href = `/api/download-audio/${encodeURIComponent(fileName)}`;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        const removeAudio = async (index) => {
+            try {
+                await ElMessageBox.confirm('确定要删除这个音频文件吗？', '确认删除', {
+                    confirmButtonText: '删除',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                });
+                audioList.value.splice(index, 1);
+                updateSelectAllAudio();
+                ElMessage.success('音频删除成功');
+            } catch (error) {
+                // 用户取消操作
+            }
+        };
+
+        // 批量删除选中的音频
+        const deleteSelectedAudios = async () => {
+            const selected = selectedAudios.value;
+            if (selected.length === 0) {
+                ElMessage.warning('请先选择要删除的音频文件');
+                return;
+            }
+
+            try {
+                await ElMessageBox.confirm(`确定要删除选中的 ${selected.length} 个音频文件吗？`, '确认删除', {
+                    confirmButtonText: '删除',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                });
+
+                // 从后往前删除，避免索引问题
+                for (let i = audioList.value.length - 1; i >= 0; i--) {
+                    if (audioList.value[i].selected) {
+                        audioList.value.splice(i, 1);
+                    }
+                }
+
+                updateSelectAllAudio();
+                ElMessage.success(`已删除 ${selected.length} 个音频文件`);
+            } catch (error) {
+                // 用户取消操作
+            }
+        };
+
+        // 通用方法
+        const copyText = async (text) => {
+            try {
+                await navigator.clipboard.writeText(text);
+                ElMessage.success('内容已复制到剪贴板');
+            } catch (error) {
+                ElMessage.error('复制失败');
+            }
+        };
+
+        const downloadText = (text, filename) => {
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${filename}_${Date.now()}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        };
+
+        const clearAllData = async () => {
+            try {
+                await ElMessageBox.confirm('确定要清空所有数据吗？这将删除所有视频、文案、翻译和音频数据。', '确认清空', {
+                    confirmButtonText: '清空',
+                    cancelButtonText: '取消',
+                    type: 'warning'
                 });
                 
-                if (!response.ok) {
-                    throw new Error(`翻译失败: ${response.statusText}`);
-                }
+                selectedVideos.value = [];
+                transcriptions.value = [];
+                translations.value = [];
+                audioList.value = [];
+                selectAll.value = false;
+                selectAllTranscriptions.value = false;
+                selectAllAudio.value = false;
+                currentPlayingAudio.value = '';
                 
-                const result = await response.json();
-                
-                // 添加翻译结果
-                addTranslation(result.translatedText, lang, transcription.source);
-                
-                completed++;
+                ElMessage.success('所有数据已清空');
+            } catch (error) {
+                // 用户取消操作
             }
-        }
-        
-        showSuccess(`批量翻译完成！共翻译 ${total} 项内容`);
-        
-    } catch (error) {
-        console.error('批量翻译失败:', error);
-        showError(`批量翻译失败: ${error.message}`);
-    }
-}
+        };
 
-// 4. 批量生成语音
-async function batchGenerateSpeech() {
-    const allTexts = [...transcriptions, ...translations];
-    if (allTexts.length === 0) return;
-    
-    try {
-        const voiceTypeSelect = document.getElementById('voiceTypeSelect');
-        const voiceType = voiceTypeSelect ? voiceTypeSelect.value : 'Kore';
-        let completed = 0;
-        
-        for (const text of allTexts) {
-            const targetLang = text.language || 'US';
+        // 生命周期
+        onMounted(() => {
+            console.log('视频转录智能处理平台已启动');
             
-            const response = await fetch('/api/generate-speech', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    text: text.text,
-                    targetLanguage: targetLang,
-                    voiceName: voiceType,
-                    transcriptionId: text.id
-                })
-            });
+            // 检查服务器健康状态
+            checkServerHealth();
             
-            if (!response.ok) {
-                throw new Error(`语音生成失败: ${response.statusText}`);
-            }
-            
-            const result = await response.json();
-            
-            // 添加生成的语音
-            addGeneratedSpeech(result.audioFileName, text.source, targetLang);
-            
-            completed++;
-        }
-        
-        showSuccess(`批量语音生成完成！共生成 ${allTexts.length} 个语音文件`);
-        
-    } catch (error) {
-        console.error('批量语音生成失败:', error);
-        showError(`批量语音生成失败: ${error.message}`);
-    }
-}
-
-// 工作流程执行
-async function startWorkflow() {
-    if (selectedVideos.length === 0) {
-        showError('请先选择视频文件');
-        return;
-    }
-    
-    const step1 = document.getElementById('enableStep1').checked;
-    const step2 = document.getElementById('enableStep2').checked;
-    const step3 = document.getElementById('enableStep3').checked;
-    const step4 = document.getElementById('enableStep4').checked;
-    
-    try {
-        if (step1) {
-            await extractAudioFromVideos();
-        }
-        
-        if (step2 && audioFiles.length > 0) {
-            for (const audio of audioFiles) {
-                if (!audio.transcribed) {
-                    await transcribeAudio(audio.id);
-                }
-            }
-        }
-        
-        if (step3 && transcriptions.length > 0 && selectedLanguages.length > 0) {
-            await batchTranslateTexts();
-        }
-        
-        if (step4) {
-            await batchGenerateSpeech();
-        }
-        
-        showSuccess('工作流程执行完成！');
-        
-    } catch (error) {
-        console.error('工作流程执行失败:', error);
-        showError(`工作流程执行失败: ${error.message}`);
-    }
-}
-
-// 辅助函数
-function addExtractedAudio(audioFileName, sourceName) {
-    const audioId = 'audio_extracted_' + Date.now();
-    audioFiles.push({
-        id: audioId,
-        name: audioFileName,
-        source: sourceName,
-        type: 'extracted',
-        transcribed: false
-    });
-    updateAudioFilesList();
-    updateResultsDisplay();
-}
-
-function addTranscription(text, source) {
-    const transcriptionId = 'transcription_' + Date.now();
-    transcriptions.push({
-        id: transcriptionId,
-        text: text,
-        source: source,
-        language: 'zh'
-    });
-    updateTranscriptionsList();
-    updateTextsList();
-    updateResultsDisplay();
-}
-
-function addTranslation(text, language, source) {
-    const translationId = 'translation_' + Date.now();
-    translations.push({
-        id: translationId,
-        text: text,
-        language: language,
-        source: source + ` (${getLanguageName(language)})`
-    });
-    updateTextsList();
-    updateResultsDisplay();
-}
-
-function addGeneratedSpeech(audioFileName, source, language) {
-    speeches.push({
-        id: 'speech_' + Date.now(),
-        fileName: audioFileName,
-        source: source,
-        language: language
-    });
-    updateResultsDisplay();
-}
-
-function updateResultsDisplay() {
-    // 更新音频结果
-    const audioResultsList = document.getElementById('audioResultsList');
-    if (audioResultsList) {
-        if (audioFiles.length === 0) {
-            audioResultsList.innerHTML = `
-                <div class="text-center text-muted">
-                    <i class="bi bi-file-music" style="font-size: 24px; opacity: 0.5;"></i>
-                    <p class="mt-2 mb-0">暂无音频文件</p>
-                </div>
-            `;
-        } else {
-            audioResultsList.innerHTML = audioFiles.map(audio => `
-                <div class="content-item">
-                    <div class="content-header">
-                        <h6 class="content-title">${audio.name}</h6>
-                        <span class="badge ${audio.transcribed ? 'bg-success' : 'bg-secondary'} content-badge">
-                            ${audio.transcribed ? '已转录' : '未转录'}
-                        </span>
-                    </div>
-                    <div class="content-actions">
-                        <button class="btn btn-outline-primary btn-sm" onclick="downloadAudio('${audio.name}')">
-                            <i class="bi bi-download me-1"></i>下载
-                        </button>
-                        <button class="btn btn-outline-info btn-sm" onclick="playAudioFile('${audio.name}')">
-                            <i class="bi bi-play me-1"></i>播放
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-    }
-    
-    // 更新转录结果
-    const transcriptResultsList = document.getElementById('transcriptResultsList');
-    if (transcriptResultsList) {
-        const allTranscripts = [...transcriptions, ...translations];
-        if (allTranscripts.length === 0) {
-            transcriptResultsList.innerHTML = `
-                <div class="text-center text-muted">
-                    <i class="bi bi-file-text" style="font-size: 24px; opacity: 0.5;"></i>
-                    <p class="mt-2 mb-0">暂无转录文案</p>
-                </div>
-            `;
-        } else {
-            transcriptResultsList.innerHTML = allTranscripts.map(text => `
-                <div class="content-item">
-                    <div class="content-header">
-                        <h6 class="content-title">${text.source || '文案'}</h6>
-                        <span class="badge bg-info content-badge">${getLanguageName(text.language || 'zh')}</span>
-                    </div>
-                    <div class="content-actions">
-                        <button class="btn btn-outline-primary btn-sm" onclick="copyText('${text.id}')">
-                            <i class="bi bi-copy me-1"></i>复制
-                        </button>
-                        <button class="btn btn-outline-success btn-sm" onclick="downloadText('${text.id}', '${text.source || 'text'}')">
-                            <i class="bi bi-download me-1"></i>下载
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-    }
-    
-    // 更新语音结果
-    const speechResultsList = document.getElementById('speechResultsList');
-    if (speechResultsList) {
-        if (speeches.length === 0) {
-            speechResultsList.innerHTML = `
-                <div class="text-center text-muted">
-                    <i class="bi bi-volume-up" style="font-size: 24px; opacity: 0.5;"></i>
-                    <p class="mt-2 mb-0">暂无生成语音</p>
-                </div>
-            `;
-        } else {
-            speechResultsList.innerHTML = speeches.map(speech => `
-                <div class="content-item">
-                    <div class="content-header">
-                        <h6 class="content-title">${speech.source || '语音'}</h6>
-                        <span class="badge bg-success content-badge">${getLanguageName(speech.language)}</span>
-                    </div>
-                    <div class="content-actions">
-                        <button class="btn btn-outline-primary btn-sm" onclick="downloadAudio('${speech.fileName}')">
-                            <i class="bi bi-download me-1"></i>下载
-                        </button>
-                        <button class="btn btn-outline-info btn-sm" onclick="playAudioFile('${speech.fileName}')">
-                            <i class="bi bi-play me-1"></i>播放
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-    }
-}
-
-function getLanguageName(code) {
-    const names = {
-        'zh': '中文',
-        'US': '英语',
-        'ES': '西班牙语',
-        'PT': '葡萄牙语',
-        'FR': '法语',
-        'DE': '德语'
-    };
-    return names[code] || code;
-}
-
-// 进度显示
-function showProgress(type, show) {
-    const element = document.getElementById('videoProcessProgress');
-    if (element) {
-        element.style.display = show ? 'block' : 'none';
-    }
-}
-
-function updateProgress(type, percentage, text) {
-    const bar = document.getElementById('videoProgressBar');
-    const textElement = document.getElementById('videoProgressText');
-    
-    if (bar) {
-        bar.style.width = percentage + '%';
-    }
-    if (textElement) {
-        textElement.textContent = text;
-    }
-}
-
-// 操作函数
-function addManualText() {
-    const text = prompt('请输入文案内容:');
-    if (text && text.trim()) {
-        addTranscription(text.trim(), '手动输入');
-    }
-}
-
-function updateTranscription(id, newText) {
-    const transcription = transcriptions.find(t => t.id === id);
-    if (transcription) {
-        transcription.text = newText;
-    }
-}
-
-function removeTranscription(id) {
-    if (confirm('确定要删除这个文案吗？')) {
-        transcriptions = transcriptions.filter(t => t.id !== id);
-        updateTranscriptionsList();
-        updateTextsList();
-        updateResultsDisplay();
-    }
-}
-
-function removeAudio(id) {
-    if (confirm('确定要删除这个音频文件吗？')) {
-        audioFiles = audioFiles.filter(a => a.id !== id);
-        updateAudioFilesList();
-        updateResultsDisplay();
-    }
-}
-
-function copyText(id) {
-    const allTexts = [...transcriptions, ...translations];
-    const text = allTexts.find(t => t.id === id);
-    if (text) {
-        navigator.clipboard.writeText(text.text).then(() => {
-            showSuccess('内容已复制到剪贴板');
-        }).catch(() => {
-            showError('复制失败');
+            // 获取语音选项
+            fetchVoiceOptions();
         });
+
+        const checkServerHealth = async () => {
+            try {
+                const response = await fetch('/api/health');
+                if (response.ok) {
+                    console.log('服务器连接正常');
+                } else {
+                    ElMessage.warning('服务器连接异常');
+                }
+            } catch (error) {
+                console.error('服务器连接失败:', error);
+                ElMessage.error('无法连接到服务器，请检查服务器是否正常运行');
+            }
+        };
+
+        // 获取可用的语音选项
+        const fetchVoiceOptions = async () => {
+            try {
+                const response = await fetch('/api/voice-options');
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        availableVoices.value = result.voices;
+                        // 设置默认语音
+                        if (availableVoices.value.length > 0 && !speechSettings.voiceName) {
+                            speechSettings.voiceName = availableVoices.value[0].name;
+                        }
+                        console.log('语音选项获取成功:', availableVoices.value);
+                    } else {
+                        console.error('获取语音选项失败:', result.error);
+                        ElMessage.error('获取语音选项失败');
+                    }
+                } else {
+                    throw new Error('服务器响应错误');
+                }
+            } catch (error) {
+                console.error('获取语音选项失败:', error);
+                ElMessage.error('获取语音选项失败，将使用默认选项');
+                // 设置后备语音选项
+                availableVoices.value = [
+                    { name: 'Kore', description: '坚定', displayName: 'Kore - 坚定' },
+                    { name: 'Puck', description: '欢快', displayName: 'Puck - 欢快' },
+                    { name: 'Zephyr', description: '明亮', displayName: 'Zephyr - 明亮' },
+                    { name: 'Charon', description: '信息丰富', displayName: 'Charon - 信息丰富' },
+                    { name: 'Leda', description: '青春', displayName: 'Leda - 青春' },
+                    { name: 'Aoede', description: 'Breezy', displayName: 'Aoede - Breezy' }
+                ];
+                speechSettings.voiceName = 'Kore';
+            }
+        };
+
+        // 语音试听功能
+        const playVoiceSample = async () => {
+            if (!speechSettings.voiceName) {
+                ElMessage.warning('请先选择语音类型');
+                return;
+            }
+
+            if (isPlayingVoiceSample.value) {
+                // 如果正在播放，则停止
+                stopVoiceSample();
+                return;
+            }
+
+            isPlayingVoiceSample.value = true;
+
+            try {
+                // 停止当前播放的音频
+                if (voiceSampleAudio.value) {
+                    voiceSampleAudio.value.pause();
+                    voiceSampleAudio.value = null;
+                }
+
+                // 创建音频元素
+                const audio = new Audio();
+                audio.src = `/api/voice-sample/${speechSettings.voiceName}`;
+                audio.volume = 0.7;
+                
+                // 设置事件监听器
+                audio.onloadeddata = () => {
+                    console.log('语音样本加载完成');
+                };
+                
+                audio.onplay = () => {
+                    console.log('开始播放语音样本');
+                };
+                
+                audio.onended = () => {
+                    console.log('语音样本播放结束');
+                    isPlayingVoiceSample.value = false;
+                    voiceSampleAudio.value = null;
+                };
+                
+                audio.onerror = (error) => {
+                    console.error('语音样本播放失败:', error);
+                    ElMessage.error('语音样本播放失败，请检查网络连接');
+                    isPlayingVoiceSample.value = false;
+                    voiceSampleAudio.value = null;
+                };
+
+                voiceSampleAudio.value = audio;
+                
+                // 开始播放
+                await audio.play();
+                ElMessage.success(`正在播放 ${speechSettings.voiceName} 语音样本`);
+
+            } catch (error) {
+                console.error('播放语音样本失败:', error);
+                ElMessage.error('播放语音样本失败，请稍后重试');
+                isPlayingVoiceSample.value = false;
+                voiceSampleAudio.value = null;
+            }
+        };
+
+        // 停止语音试听
+        const stopVoiceSample = () => {
+            if (voiceSampleAudio.value) {
+                voiceSampleAudio.value.pause();
+                voiceSampleAudio.value = null;
+            }
+            isPlayingVoiceSample.value = false;
+        };
+
+        return {
+            // 响应式数据
+            selectedVideos,
+            transcriptions,
+            translations,
+            audioList,
+            isProcessing,
+            progressText,
+            progressPercentage,
+            translateDialogVisible,
+            selectedLanguages,
+            isTranslating,
+            audioPlayerDialogVisible,
+            currentAudioTitle,
+            currentAudioUrl,
+            currentPlayingAudio,
+            currentPlayingIndex,
+            audioProgress,
+            currentTime,
+            audioDuration,
+            speechDialogVisible,
+            isGeneratingSpeech,
+            speechSettings,
+            availableVoices,
+            isPlayingVoiceSample,
+            voiceSampleAudio,
+            selectAll,
+            selectAllTranscriptions,
+            selectAllAudio,
+            availableLanguages,
+            
+            // 计算属性
+            selectedTranscriptions,
+            selectedTranslations,
+            selectedAudios,
+            
+            // 方法
+            formatFileSize,
+            getLanguageName,
+            getLanguageTagType,
+            handleVideoFileChange,
+            beforeVideoUpload,
+            removeVideoFile,
+            processVideos,
+            addManualText,
+            removeTranscription,
+            showTranslateDialog,
+            handleTranslateDialogClose,
+            executeTranslation,
+            removeTranslation,
+            handleSelectAll,
+            updateSelectAll,
+            handleSelectAllTranscriptions,
+            updateSelectAllTranscriptions,
+            deleteSelectedTranscriptions,
+            deleteSelectedTranslations,
+            handleSelectAllAudio,
+            updateSelectAllAudio,
+            deleteSelectedAudios,
+            downloadSelectedAudios,
+            generateSelectedSpeech,
+            generateSingleSpeech,
+            confirmGenerateSpeech,
+            toggleAudioPlayback,
+            onAudioLoaded,
+            onTimeUpdate,
+            onAudioEnded,
+            seekAudio,
+            getAudioElement,
+            audioRefs,
+            formatTime,
+            formatDuration,
+            downloadAudio,
+            removeAudio,
+            copyText,
+            downloadText,
+            clearAllData,
+            playVoiceSample,
+            stopVoiceSample
+        };
     }
-}
+});
 
-function downloadText(id, filename) {
-    const allTexts = [...transcriptions, ...translations];
-    const text = allTexts.find(t => t.id === id);
-    if (text) {
-        const blob = new Blob([text.text], { type: 'text/plain;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `${filename}_${Date.now()}.txt`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-    }
-}
+// 注册 Element Plus 图标
+app.component('VideoPlay', VideoPlay);
+app.component('VideoPause', VideoPause);
+app.component('Upload', Upload);
+app.component('UploadFilled', UploadFilled);
+app.component('VideoCamera', VideoCamera);
+app.component('Close', Close);
+app.component('Play', Play);
+app.component('Document', Document);
+app.component('Sort', Sort);
+app.component('Plus', Plus);
+app.component('CopyDocument', CopyDocument);
+app.component('Download', Download);
+app.component('Delete', Delete);
+app.component('ChatDotSquare', ChatDotSquare);
+app.component('Microphone', Microphone);
+app.component('Headphone', Headphone);
+app.component('Volume', Volume);
 
-function downloadAudio(fileName) {
-    const link = document.createElement('a');
-    link.href = `/api/download-audio/${encodeURIComponent(fileName)}`;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
+// 使用 Element Plus
+app.use(ElementPlus, {
+    locale: ElementPlusLocaleZhCn
+});
 
-function playAudio(audioId) {
-    console.log('播放音频:', audioId);
-}
-
-function playAudioFile(fileName) {
-    // 创建音频播放器
-    const modal = document.createElement('div');
-    modal.className = 'modal fade';
-    modal.innerHTML = `
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">播放音频: ${fileName}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <audio controls class="w-100">
-                        <source src="/api/download-audio/${encodeURIComponent(fileName)}" type="audio/mpeg">
-                        您的浏览器不支持音频播放。
-                    </audio>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    const bsModal = new bootstrap.Modal(modal);
-    bsModal.show();
-    
-    modal.addEventListener('hidden.bs.modal', () => {
-        document.body.removeChild(modal);
-    });
-}
-
-function generateSpeechForText(textId) {
-    const allTexts = [...transcriptions, ...translations];
-    const text = allTexts.find(t => t.id === textId);
-    if (!text) return;
-    
-    const voiceTypeSelect = document.getElementById('voiceTypeSelect');
-    const voiceType = voiceTypeSelect ? voiceTypeSelect.value : 'Kore';
-    const targetLang = text.language || 'US';
-    
-    fetch('/api/generate-speech', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            text: text.text,
-            targetLanguage: targetLang,
-            voiceName: voiceType,
-            transcriptionId: textId
-        })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            addGeneratedSpeech(result.audioFileName, text.source, targetLang);
-            showSuccess(`语音生成完成：${result.audioFileName}`);
-        } else {
-            throw new Error(result.error);
-        }
-    })
-    .catch(error => {
-        console.error('语音生成失败:', error);
-        showError(`语音生成失败: ${error.message}`);
-    });
-}
-
-function clearAllResults() {
-    if (confirm('确定要清空所有结果吗？')) {
-        audioFiles = [];
-        transcriptions = [];
-        translations = [];
-        speeches = [];
-        selectedVideos = [];
-        selectedLanguages = [];
-        
-        updateVideoFilesList();
-        updateAudioFilesList();
-        updateTranscriptionsList();
-        updateTextsList();
-        updateResultsDisplay();
-        
-        // 清除语言选择
-        const languageGrid = document.getElementById('languageGrid');
-        if (languageGrid) {
-            languageGrid.querySelectorAll('.language-option').forEach(option => {
-                option.classList.remove('selected');
-            });
-        }
-        
-        showSuccess('所有结果已清空');
-    }
-}
-
-// 消息显示
-function showSuccess(message) {
-    showAlert(message, 'success');
-}
-
-function showError(message) {
-    showAlert(message, 'danger');
-}
-
-function showAlert(message, type) {
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    alert.style.cssText = `
-        top: 20px;
-        right: 20px;
-        z-index: 1050;
-        min-width: 300px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    `;
-    alert.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(alert);
-    
-    setTimeout(() => {
-        if (alert.parentNode) {
-            alert.remove();
-        }
-    }, 5000);
-}
-
-// 服务器健康检查
-async function checkServerHealth() {
-    try {
-        const response = await fetch('/api/health');
-        if (response.ok) {
-            console.log('服务器连接正常');
-        }
-    } catch (error) {
-        console.error('服务器连接失败:', error);
-        showError('无法连接到服务器，请检查服务器是否正常运行');
-    }
-}
+// 挂载应用
+app.mount('#app');

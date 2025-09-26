@@ -1,0 +1,639 @@
+body {
+  margin: 0;
+  padding: 0;
+  background: #f8f9fa;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  height: 100vh;
+}
+
+.main-container {
+  height: 100vh;
+  background: transparent;
+}
+
+.header-bar {
+  background: #2c3e50;
+  color: white;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 60px !important;
+}
+
+.main-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.main-content {
+  padding: 16px;
+  height: calc(100vh - 60px);
+}
+
+.full-height {
+  height: 100%;
+}
+
+.column-card {
+  height: 100%;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.column-card .el-card__header {
+  background: #495057;
+  color: white;
+  padding: 16px 20px;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid #dee2e6;
+  flex-shrink: 0;
+}
+
+.column-card .el-card__body {
+  padding: 20px;
+  flex: 1;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 卡片头部样式 */
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.card-header > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+/* 确保图标在深色背景下可见 */
+.card-header .el-icon {
+  color: white !important;
+  font-size: 18px;
+}
+
+.header-bar .el-icon {
+  color: white !important;
+}
+
+/* 确保勾选框在深色背景下可见 */
+.card-header .el-checkbox {
+  color: white !important;
+}
+
+.card-header .el-checkbox__label {
+  color: white !important;
+  font-size: 12px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* 上传组件样式 */
+.upload-demo {
+  margin-bottom: 20px;
+}
+
+.upload-demo .el-upload-dragger {
+  border: 2px dashed #d9d9d9;
+  border-radius: 12px;
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.upload-demo .el-upload-dragger:hover {
+  border-color: #6c757d;
+  background: #f8f9fa;
+}
+
+.upload-demo .el-icon--upload {
+  font-size: 48px;
+  color: #6c757d;
+  margin-bottom: 16px;
+}
+
+.upload-demo .el-upload__text {
+  color: #495057;
+  font-size: 14px;
+}
+
+.upload-demo .el-upload__text em {
+  color: #495057;
+  font-style: normal;
+}
+
+/* 文件列表样式 */
+.file-list-section {
+  margin-top: 20px;
+  flex-shrink: 0;
+}
+
+.file-list {
+  margin-bottom: 16px;
+}
+
+/* 进度区域样式 */
+.progress-section {
+  margin-top: 20px;
+  flex-shrink: 0;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+}
+
+.file-item:hover {
+  border-color: #6c757d;
+  background: #f8f9fa;
+}
+
+.file-info {
+  flex: 1;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #212529;
+  margin-bottom: 4px;
+}
+
+.file-size {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.process-btn {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* 进度显示样式 */
+.progress-info {
+  margin-top: 12px;
+}
+
+.progress-text {
+  font-size: 14px;
+  color: #495057;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+/* 内容列表样式 */
+.content-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.transcription-list,
+.translation-list,
+.audio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  overflow: visible;
+}
+
+/* 上传区域样式调整 */
+.upload-demo {
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.content-item {
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+.content-item:hover {
+  border-color: #6c757d;
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.15);
+  transform: translateY(-2px);
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.content-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.source-text {
+  font-size: 12px;
+  color: #6c757d;
+  margin-left: 8px;
+}
+
+.content-textarea {
+  margin-top: 8px;
+}
+
+.content-textarea .el-textarea__inner {
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+}
+
+.content-textarea .el-textarea__inner:focus {
+  border-color: #6c757d;
+}
+
+/* 确保textarea自适应高度 */
+.content-textarea .el-textarea {
+  width: 100%;
+}
+
+.content-textarea .el-textarea__inner {
+  min-height: 40px;
+  max-height: 120px;
+}
+
+/* 音频相关样式 - 紧凑版本 */
+.compact-audio-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background: #ffffff;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compact-audio-item:hover {
+  border-color: #6c757d;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.audio-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.audio-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.audio-meta-row .el-checkbox {
+  margin-right: 4px;
+}
+
+.language-tag {
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.audio-source-tag {
+  background: #f1f3f4;
+  color: #6c757d;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.audio-name-row {
+  width: 100%;
+}
+
+.audio-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #212529;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  width: 100%;
+}
+
+.audio-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+  width: 100%;
+  padding-top: 4px;
+}
+
+.play-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.download-btn, .delete-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  font-size: 13px;
+  align-items: center;
+  justify-content: center;
+}
+
+.audio-progress {
+  width: 100%;
+  margin-top: 8px;
+  padding: 4px 0;
+}
+
+.audio-progress .progress-bar {
+  position: relative;
+  height: 4px;
+  background: #e9ecef;
+  border-radius: 2px;
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+
+.audio-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6c757d 0%, #495057 100%);
+  border-radius: 2px;
+  transition: width 0.1s ease;
+}
+
+.time-display {
+  text-align: center;
+}
+
+.time-text {
+  font-size: 11px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+
+.dialog-audio-control {
+  width: 100%;
+  margin: 20px 0;
+}
+
+/* 弹窗样式 */
+.language-grid {
+  padding: 20px 0;
+}
+
+.language-option {
+  margin-bottom: 12px !important;
+  width: 100%;
+}
+
+.language-option .el-checkbox__label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Element Plus 自定义样式 */
+.el-card__header {
+  border-bottom: none !important;
+}
+
+.el-divider__text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.el-tag {
+  border-radius: 4px;
+}
+
+.el-button-group .el-button {
+  margin: 0;
+}
+
+.el-empty {
+  padding: 40px 20px;
+}
+
+.el-empty__description {
+  color: #6c757d;
+  font-size: 14px;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .main-content {
+    padding: 12px;
+  }
+  
+  .column-card .el-card__body {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    overflow: auto;
+  }
+  
+  .main-container {
+    height: auto;
+  }
+  
+  .main-content {
+    height: auto;
+    padding: 8px;
+  }
+  
+  .column-card {
+    height: auto;
+    min-height: 300px;
+    margin-bottom: 16px;
+  }
+  
+  .column-card .el-card__body {
+    flex: none;
+    padding: 12px;
+  }
+  
+  .content-list {
+    flex: none;
+  }
+  
+  .transcription-list,
+  .translation-list,
+  .audio-list {
+    flex: none;
+  }
+  
+  .header-bar {
+    height: 50px !important;
+    padding: 0 12px;
+  }
+  
+  .main-title {
+    font-size: 16px;
+  }
+  
+  /* 音频列表移动端优化 */
+  .audio-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  
+  .audio-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .audio-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .audio-name {
+    white-space: normal;
+    word-break: break-word;
+  }
+  
+  .player-controls {
+    gap: 12px;
+  }
+  
+  .volume-control {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .volume-slider {
+    max-width: none;
+  }
+}
+
+/* 移除滚动条样式，改为自适应高度 */
+
+/* 动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.content-item {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.file-item {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.audio-item {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+/* 语音选择容器样式 */
+.voice-selection-container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.voice-select {
+  flex: 1;
+}
+
+.voice-preview-btn {
+  flex-shrink: 0;
+  min-width: 80px;
+}
