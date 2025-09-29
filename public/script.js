@@ -71,31 +71,8 @@ const app = createApp({
         // 音频选择相关
         const selectAllAudio = ref(false);
 
-        // 可用语言
-        const availableLanguages = ref([
-            { code: 'US', name: 'US', flag: 'US' },
-            { code: 'AR', name: 'AR', flag: 'AR' },
-            { code: 'BR', name: 'BR', flag: 'BR' },
-            { code: 'DE', name: 'DE', flag: 'DE' },
-            { code: 'ES', name: 'ES', flag: 'ES' },
-            { code: 'FR', name: 'FR', flag: 'FR' },
-            { code: 'ID', name: 'ID', flag: 'ID' },
-            { code: 'IT', name: 'IT', flag: 'IT' },
-            { code: 'JP', name: 'JP', flag: 'JP' },
-            { code: 'KR', name: 'KR', flag: 'KR' },
-            { code: 'NL', name: 'NL', flag: 'NL' },
-            { code: 'PL', name: 'PL', flag: 'PL' },
-            { code: 'TH', name: 'TH', flag: 'TH' },
-            { code: 'TR', name: 'TR', flag: 'TR' },
-            { code: 'TW', name: 'TW', flag: 'TW' },
-            { code: 'VN', name: 'VN', flag: 'VN' },
-            { code: 'RU', name: 'RU', flag: 'RU' },
-            { code: 'PT', name: 'PT', flag: 'PT' },
-            { code: 'SV', name: 'SV', flag: 'SV' },
-            { code: 'FI', name: 'FI', flag: 'FI' },
-            { code: 'MS', name: 'MS', flag: 'MS' },
-            { code: 'IN', name: 'IN', flag: 'IN' }
-        ]);
+        // 可用语言（从后端动态获取）
+        const availableLanguages = ref([]);
 
 
         // 计算属性
@@ -121,60 +98,19 @@ const app = createApp({
         };
 
         const getLanguageName = (code) => {
-            const languageNames = {
-                'zh': '中文',
-                'US': 'US',
-                'AR': 'AR',
-                'BR': 'BR',
-                'DE': 'DE',
-                'ES': 'ES',
-                'FR': 'FR',
-                'ID': 'ID',
-                'IT': 'IT',
-                'JP': 'JP',
-                'KR': 'KR',
-                'NL': 'NL',
-                'PL': 'PL',
-                'TH': 'TH',
-                'TR': 'TR',
-                'TW': 'TW',
-                'VN': 'VN',
-                'RU': 'RU',
-                'PT': 'PT',
-                'SV': 'SV',
-                'FI': 'FI',
-                'MS': 'MS',
-                'IN': 'IN'
-            };
-            return languageNames[code] || code;
+            // 特殊处理中文
+            if (code === 'zh') return '中文';
+            return code;
         };
 
         const getLanguageTagType = (code) => {
-            const tagTypes = {
-                'US': 'primary',
-                'AR': 'success',
-                'BR': 'warning',
-                'DE': 'danger',
-                'ES': 'success',
-                'FR': 'info',
-                'ID': 'primary',
-                'IT': 'warning',
-                'JP': 'danger',
-                'KR': 'success',
-                'NL': 'info',
-                'PL': 'primary',
-                'TH': 'warning',
-                'TR': 'danger',
-                'TW': 'success',
-                'VN': 'info',
-                'RU': 'primary',
-                'PT': 'warning',
-                'SV': 'danger',
-                'FI': 'success',
-                'MS': 'info',
-                'IN': 'primary'
-            };
-            return tagTypes[code] || 'info';
+            // 特殊处理中文
+            if (code === 'zh') return 'primary';
+            
+            // 根据语言代码生成一致的标签类型
+            const tagTypes = ['primary', 'success', 'warning', 'danger', 'info'];
+            const hash = code.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            return tagTypes[hash % tagTypes.length];
         };
 
         const generateId = () => {
@@ -188,14 +124,14 @@ const app = createApp({
 
         const beforeVideoUpload = (file) => {
             const isVideo = file.type.startsWith('video/');
-            const isLt100M = file.size / 1024 / 1024 < 100;
+            const isLt1G = file.size / 1024 / 1024 < 1024;
 
             if (!isVideo) {
                 ElMessage.error('只能上传视频文件!');
                 return false;
             }
-            if (!isLt100M) {
-                ElMessage.error('视频文件大小不能超过 100MB!');
+            if (!isLt1G) {
+                ElMessage.error('视频文件大小不能超过 1GB!');
                 return false;
             }
             return false; // 阻止自动上传
@@ -293,6 +229,18 @@ const app = createApp({
                     confirmButtonText: '确定',
                     cancelButtonText: '取消',
                     inputType: 'textarea',
+                    inputPlaceholder: '请输入要添加的文案内容...',
+                    customStyle: {
+                        width: '600px',
+                        height: '400px',
+                        '--el-messagebox-width': '600px',
+                        '--el-messagebox-height': '400px',
+                    },
+                    inputStyle: {
+                        height: '400px',
+                        minHeight: '200px',
+                        resize: 'vertical'
+                    },
                     inputValidator: (value) => {
                         if (!value || !value.trim()) {
                             return '文案内容不能为空';
@@ -745,7 +693,7 @@ const app = createApp({
                 await navigator.clipboard.writeText(text);
                 ElMessage.success('内容已复制到剪贴板');
             } catch (error) {
-                ElMessage.error('复制失败');
+                ElMessage.error(error + '复制失败');
             }
         };
 
@@ -790,6 +738,9 @@ const app = createApp({
             // 检查服务器健康状态
             checkServerHealth();
             
+            // 获取语言配置
+            fetchSupportedLanguages();
+            
             // 获取语音选项
             fetchVoiceOptions();
         });
@@ -805,6 +756,32 @@ const app = createApp({
             } catch (error) {
                 console.error('服务器连接失败:', error);
                 ElMessage.error('无法连接到服务器，请检查服务器是否正常运行');
+            }
+        };
+
+        // 获取支持的语言列表
+        const fetchSupportedLanguages = async () => {
+            try {
+                const response = await fetch('/api/supported-languages');
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        // 将语言代码数组转换为前端需要的格式
+                        availableLanguages.value = result.languages.map(code => ({
+                            code: code,
+                            name: code,
+                        }));
+                        console.log('语言配置获取成功:', availableLanguages.value);
+                    } else {
+                        console.error('获取语言配置失败:', result.error);
+                        ElMessage.error('获取语言配置失败');
+                    }
+                } else {
+                    throw new Error('服务器响应错误');
+                }
+            } catch (error) {
+                console.error('获取语言配置失败:', error);
+                ElMessage.error('获取语言配置失败');
             }
         };
 
@@ -994,7 +971,8 @@ const app = createApp({
             downloadText,
             clearAllData,
             playVoiceSample,
-            stopVoiceSample
+            stopVoiceSample,
+            fetchSupportedLanguages
         };
     }
 });

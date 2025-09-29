@@ -3,48 +3,20 @@ import {
 } from "@google/genai";
 
 let apiKey =
-  process.env.GEMINI_API_KEY || "AIzaSyChLKS2TbigTTYsEP7i_-AHy8I4J6gkxM8";
+  process.env.GEMINI_API_KEY || "AIzaSyDFgPeYemKTYlx5X_iPzJUV7F9QLB1kRgs";
 
 // 初始化Gemini客户端
 const genAI = new GoogleGenAI({ apiKey: apiKey });
 
 // 支持的语言配置
-const SUPPORTED_LANGUAGES = {
-  'US': {
-    name: '英语 (美国)',
-    code: 'en-US',
-    bcp47: 'en-US',
-    description: 'English (United States)'
-  },
-  'ES': {
-    name: '西班牙语',
-    code: 'es-US', 
-    bcp47: 'es-US',
-    description: 'Spanish (United States)'
-  },
-  'PT': {
-    name: '葡萄牙语',
-    code: 'pt-BR',
-    bcp47: 'pt-BR', 
-    description: 'Portuguese (Brazil)'
-  },
-  'FR': {
-    name: '法语',
-    code: 'fr-FR',
-    bcp47: 'fr-FR',
-    description: 'French (France)'
-  },
-  'DE': {
-    name: '德语',
-    code: 'de-DE',
-    bcp47: 'de-DE',
-    description: 'German (Germany)'
-  }
-};
+const SUPPORTED_LANGUAGES = [
+  'US', 'AR', 'BR', 'DE', 'ES', 'FR', 'ID', 'IT', 'JP', 'KR', 
+  'NL', 'PL', 'TH', 'TR', 'TW', 'VN', 'RU', 'PT', 'SV', 'FI', 'MS', 'IN'
+];
 
 /**
  * 获取支持的语言列表
- * @returns {Object} 语言配置对象
+ * @returns {Array} 语言代码数组
  */
 function getSupportedLanguages() {
   return SUPPORTED_LANGUAGES;
@@ -52,17 +24,17 @@ function getSupportedLanguages() {
 
 /**
  * 验证语言代码是否支持
- * @param {string} languageCode - 语言代码 (US, ES, PT, FR, DE)
+ * @param {string} languageCode - 语言代码 (US, AR, BR, DE, ES, FR, ID, IT, JP, KR, NL, PL, TH, TR, TW, VN, RU, PT, SV, FI, MS, IN)
  * @returns {boolean} 是否支持该语言
  */
 function isLanguageSupported(languageCode) {
-  return Object.keys(SUPPORTED_LANGUAGES).includes(languageCode);
+  return SUPPORTED_LANGUAGES.includes(languageCode);
 }
 
 /**
  * 使用Gemini API翻译文本
  * @param {string} text - 要翻译的文本
- * @param {string} targetLanguage - 目标语言代码 (US, ES, PT, FR, DE)
+ * @param {string} targetLanguage - 目标语言代码 (US, AR, BR, DE, ES, FR, ID, IT, JP, KR, NL, PL, TH, TR, TW, VN, RU, PT, SV, FI, MS, IN)
  * @returns {Promise<string>} 翻译后的文本
  */
 async function translateText(text, targetLanguage) {
@@ -79,13 +51,11 @@ async function translateText(text, targetLanguage) {
       throw new Error(`不支持的语言代码: ${targetLanguage}`);
     }
 
-    const languageConfig = SUPPORTED_LANGUAGES[targetLanguage];
-    
-    console.log(`正在翻译文本到${languageConfig.name}...`);
+    console.log(`正在翻译文本到语言代码: ${targetLanguage}...`);
 
     // 构建翻译提示词
     const prompt = `
-请将以下中文文本翻译为${languageConfig.description}。
+请将以下中文文本翻译为${targetLanguage.toLocaleLowerCase()}语言。
 要求：
 1. 保持翻译的准确性和自然性
 2. 保持原文的语调和情感

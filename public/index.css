@@ -195,6 +195,10 @@ body {
   background: #f8f9fa;
 }
 
+.el-textarea__inner {
+  height: 250px !important;
+}
+
 .file-info {
   flex: 1;
 }
@@ -298,7 +302,6 @@ body {
   font-size: 13px;
   line-height: 1.5;
   resize: none;
-  overflow: hidden;
 }
 
 .content-textarea .el-textarea__inner:focus {

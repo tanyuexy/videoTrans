@@ -14,9 +14,9 @@ import { generateSpeech, validateTTSConfig, getVoiceOptions, getVoiceOptionsWith
 // ES模块中获取__dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3005;
+dotenv.config();
 
 // 中间件
 app.use(cors());
@@ -43,7 +43,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 100 * 1024 * 1024 // 100MB限制
+    fileSize: 1024 * 1024 * 1024 // 1GB限制
   },
   fileFilter: (req, file, cb) => {
     // 允许的视频格式

@@ -6,7 +6,7 @@ import {
 import fs from "fs-extra";
 
 let apiKey =
-  process.env.GEMINI_API_KEY || "AIzaSyChLKS2TbigTTYsEP7i_-AHy8I4J6gkxM8";
+  process.env.GEMINI_API_KEY || "AIzaSyDFgPeYemKTYlx5X_iPzJUV7F9QLB1kRgs";
 // 初始化Gemini客户端
 const genAI = new GoogleGenAI({ apiKey: apiKey });
 // 注意：现在使用文件上传方式，不再需要Base64转换
