@@ -634,13 +634,58 @@ const app = createApp({
             return formatTime(seconds);
         };
 
-        const downloadAudio = (fileName) => {
-            const link = document.createElement('a');
-            link.href = `/api/download-audio/${encodeURIComponent(fileName)}`;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        const downloadAudio = async (fileName) => {
+            try {                
+                // 使用fetch API下载文件，适合HTTPS环境
+                const response = await fetch(`/api/download-audio/${encodeURIComponent(fileName)}`, {
+                    method: 'GET',
+                    credentials: 'same-origin', // 包含同源凭证
+                    headers: {
+                        'Accept': 'audio/*,*/*'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`下载失败: ${response.status} ${response.statusText}`);
+                }
+                
+                // 获取文件blob
+                const blob = await response.blob();
+                
+                // 创建下载链接
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                link.style.display = 'none';
+                
+                // 添加到DOM并触发下载
+                document.body.appendChild(link);
+                link.click();
+                
+                // 清理
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+                
+                ElMessage.success('下载成功！');
+            } catch (error) {
+                console.error('音频下载失败:', error);
+                ElMessage.error(`音频下载失败: ${error.message}`);
+                
+                // 如果新方法失败，尝试传统方法作为备用
+                try {
+                    const link = document.createElement('a');
+                    link.href = `/api/download-audio/${encodeURIComponent(fileName)}`;
+                    link.download = fileName;
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (fallbackError) {
+                    console.error('备用下载方法也失败:', fallbackError);
+                    ElMessage.error('下载失败，请检查网络连接状况');
+                }
+            }
         };
 
         const removeAudio = async (index) => {

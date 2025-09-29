@@ -164,7 +164,6 @@ body {
 
 /* 文件列表样式 */
 .file-list-section {
-  margin-top: 20px;
   flex-shrink: 0;
 }
 

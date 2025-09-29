@@ -6,6 +6,7 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { dirname } from 'path';
+import https from 'https';
 import { extractAudioFromVideoAdaptive, checkFFmpegAvailability } from './utils/audioExtractor.js';
 import { transcribeWithGemini, validateGeminiConfig } from './utils/geminiTranscriber.js';
 import { translateText, getSupportedLanguages } from './utils/geminiTranslator.js';
@@ -19,7 +20,13 @@ const PORT = process.env.PORT || 3005;
 dotenv.config();
 
 // 中间件
-app.use(cors());
+app.use(cors({
+  origin: true, // 允许所有来源，或者指定具体域名
+  credentials: true, // 允许携带凭证
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control'],
+  exposedHeaders: ['Content-Disposition', 'Content-Length']
+}));
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -243,12 +250,33 @@ app.get('/api/download-audio/:filename', (req, res) => {
     return res.status(404).json({ error: '音频文件不存在' });
   }
   
-  // 设置响应头
+  // 获取文件统计信息
+  const stats = fs.statSync(audioPath);
+  const fileSize = stats.size;
+  
+  // 设置HTTPS兼容的响应头
   res.setHeader('Content-Type', 'audio/mpeg');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Length', fileSize);
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   
-  // 发送文件 - 使用绝对路径
-  res.sendFile(path.resolve(audioPath));
+  // HTTPS特定的安全头
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  
+  // 发送文件 - 使用绝对路径并添加错误处理
+  res.sendFile(path.resolve(audioPath), (err) => {
+    if (err) {
+      console.error('音频文件发送失败:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: '音频文件下载失败' });
+      }
+    }
+  });
 });
 
 // 删除音频文件端点
@@ -567,16 +595,55 @@ async function startServer() {
     console.log('✅ Gemini TTS配置检查通过');
   }
   
-  // 启动服务器
-  app.listen(PORT, () => {
-    console.log(`🚀 视频转录服务器运行在 http://localhost:${PORT}`);
+  // 封装服务器启动日志函数
+  const logServerStart = (protocol, port, hasSSL = false) => {
+    const url = `${protocol}://localhost:${port}`;
+    const timestamp = new Date().toLocaleString('zh-CN');
+    
+    console.log('='.repeat(60));
+    console.log(`🚀 视频转录服务器启动成功`);
+    console.log(`📅 启动时间: ${timestamp}`);
+    console.log(`🌐 访问地址: ${url}`);
+    console.log('='.repeat(60));
     console.log('📋 系统状态:');
     console.log(`   - FFmpeg: ${ffmpegAvailable ? '✅ 可用' : '❌ 不可用'}`);
     console.log(`   - Gemini API: ${geminiValid ? '✅ 已配置' : '⚠️  未配置'}`);
     console.log(`   - Gemini TTS: ${ttsValid ? '✅ 已配置' : '⚠️  未配置'}`);
-    console.log('');
+    console.log(`   - SSL证书: ${hasSSL ? '✅ 已配置' : '⚠️  未配置'}`);
+    console.log(`   - 协议类型: ${protocol.toUpperCase()}`);
+    console.log('='.repeat(60));
     console.log('🌐 请在浏览器中访问上述地址开始使用');
-  });
+    if (hasSSL) {
+      console.log('🔒 使用HTTPS安全连接');
+    } else {
+      console.log('💡 提示: 要启用HTTPS，请运行 mkcert 生成SSL证书');
+    }
+    console.log('='.repeat(60));
+  };
+
+  // 检查SSL证书是否存在
+  const sslDir = path.join(__dirname, 'ssl');
+  const certPath = path.join(sslDir, 'localhost+2.pem');
+  const keyPath = path.join(sslDir, 'localhost+2-key.pem');
+  
+  const hasSSLCert = fs.existsSync(certPath) && fs.existsSync(keyPath);
+  
+  if (hasSSLCert) {
+    // 启动HTTPS服务器
+    const options = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath)
+    };
+    
+    https.createServer(options, app).listen(PORT, () => {
+      logServerStart('https', PORT, true);
+    });
+  } else {
+    // 启动HTTP服务器
+    app.listen(PORT, () => {
+      logServerStart('http', PORT, false);
+    });
+  }
 }
 
 // 启动服务器

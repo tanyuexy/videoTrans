@@ -216,7 +216,7 @@ async function generateSpeech(text, voiceName = 'Kore', outputPath) {
     } else if (error.message.includes("too long")) {
       throw new Error("文本过长，请缩短文本长度");
     } else {
-      throw new Error(`语音生成失败: ${error.message}`);
+      throw error;
     }
   }
 }
