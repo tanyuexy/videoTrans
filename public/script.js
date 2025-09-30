@@ -53,7 +53,8 @@ const app = createApp({
         const speechDialogVisible = ref(false);
         const isGeneratingSpeech = ref(false);
         const speechSettings = reactive({
-            voiceName: ''
+            voiceName: '',
+            paragraphInterval: 0.3 // 默认0.5秒间隔
         });
         const availableVoices = ref([]);
         
@@ -508,10 +509,10 @@ const app = createApp({
                             text: translation.text,
                             targetLanguage: translation.language,
                             voiceName: speechSettings.voiceName,
-                            transcriptionId: translation.id
+                            transcriptionId: translation.id,
+                            paragraphInterval: speechSettings.paragraphInterval
                         })
                     });
-
                     if (!response.ok) {
                         throw new Error(`语音生成失败: ${response.statusText}`);
                     }

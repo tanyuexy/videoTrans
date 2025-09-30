@@ -410,7 +410,7 @@ app.get('/api/voice-sample/:voiceName', (req, res) => {
 // 语音生成端点
 app.post('/api/generate-speech', async (req, res) => {
   try {
-    const { text, targetLanguage, voiceName, transcriptionId } = req.body;
+    const { text, targetLanguage, voiceName, transcriptionId, paragraphInterval } = req.body;
     
     // 验证必需参数
     if (!text || !text.trim()) {
@@ -425,8 +425,15 @@ app.post('/api/generate-speech', async (req, res) => {
       return res.status(400).json({ error: '语音名称不能为空' });
     }
     
+    // 验证段落间隔参数
+    const intervalSeconds = paragraphInterval ? parseFloat(paragraphInterval) : 0;
+    if (intervalSeconds < 0) {
+      return res.status(400).json({ error: '段落间隔时间不能为负数' });
+    }
+    
     console.log(`开始生成语音: ${targetLanguage} - ${voiceName}`);
     console.log(`原始文本: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
+    console.log(`段落间隔: ${intervalSeconds}秒`);
     
     // 1. 翻译文本
     let translatedText;
@@ -458,16 +465,16 @@ app.post('/api/generate-speech', async (req, res) => {
     const audioFileName = `${baseFileName}.wav`;
     const audioPath = path.join(outputDir, audioFileName);
     
-    // 3. 生成语音
+    // 3. 生成语音（支持段落间隔）
     try {
-      await generateSpeech(translatedText, voiceName, audioPath);
+      await generateSpeech(translatedText, voiceName, audioPath, intervalSeconds);
       console.log(`语音生成完成: ${audioPath}`);
     } catch (speechError) {
       console.error('语音生成失败:', speechError);
       return res.status(500).json({
         success: false,
         error: '语音生成失败',
-        details: speechError.message
+        details: speechError
       });
     }
     
@@ -483,7 +490,7 @@ app.post('/api/generate-speech', async (req, res) => {
     const fileStats = await fs.stat(audioPath);
     const fileSizeInMB = fileStats.size / (1024 * 1024);
     
-    console.log(`语音生成成功: ${audioFileName} (${fileSizeInMB.toFixed(2)}MB)`);
+    console.log(`语音生成成功: ${audioFileName} (${fileSizeInMB}MB)`);
     
     res.json({
       success: true,
@@ -492,6 +499,7 @@ app.post('/api/generate-speech', async (req, res) => {
       translatedText: translatedText,
       targetLanguage: targetLanguage,
       voiceName: voiceName,
+      paragraphInterval: intervalSeconds,
       fileSize: fileSizeInMB,
       message: '语音生成成功'
     });

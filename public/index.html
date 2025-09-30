@@ -374,8 +374,8 @@
         </el-dialog>
 
         <!-- 语音生成设置弹窗 -->
-        <el-dialog v-model="speechDialogVisible" title="语音生成设置" width="40%">
-            <el-form :model="speechSettings" label-width="80px">
+        <el-dialog v-model="speechDialogVisible" title="语音生成设置" width="50%">
+            <el-form :model="speechSettings" label-width="120px">
                 <el-form-item label="语音类型">
                     <div class="voice-selection-container">
                         <el-select v-model="speechSettings.voiceName" placeholder="请选择语音类型" filterable class="voice-select">
@@ -396,6 +396,25 @@
                             <el-icon><Volume /></el-icon>
                             试听
                         </el-button>
+                    </div>
+                </el-form-item>
+                <el-form-item label="段落间隔" style="align-items: center;">
+                    <div class="interval-setting-container">
+                        <el-slider
+                            v-model="speechSettings.paragraphInterval"
+                            :min="0"
+                            :max="3"
+                            :step="0.1"
+                            :format-tooltip="(val) => val + '秒'"
+                            show-input
+                            :show-input-controls="false"
+                            class="interval-slider"
+                        />
+                        <div class="interval-description">
+                            <el-text type="info" size="small">
+                                当文本包含换行符时，会在段落间添加指定时长的静音间隔
+                            </el-text>
+                        </div>
                     </div>
                 </el-form-item>
             </el-form>
