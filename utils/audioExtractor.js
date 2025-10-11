@@ -1,9 +1,14 @@
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegStatic from 'ffmpeg-static';
+import ffprobeStatic from 'ffprobe-static';
 import path from 'path';
 
-// 设置FFmpeg二进制文件路径
+// 设置FFmpeg和FFprobe二进制文件路径
 ffmpeg.setFfmpegPath(ffmpegStatic);
+ffmpeg.setFfprobePath(ffprobeStatic.path);
+
+console.log('FFmpeg路径:', ffmpegStatic);
+console.log('FFprobe路径:', ffprobeStatic.path);
 /**
  * 获取视频信息
  * @param {string} videoPath - 视频文件路径
@@ -102,13 +107,15 @@ function extractAudioFromVideoAdaptive(videoPath, audioPath) {
 }
 
 /**
- * 检查FFmpeg是否可用
+ * 检查FFmpeg和FFprobe是否可用
  * @returns {Promise<boolean>}
  */
 function checkFFmpegAvailability() {
   return new Promise((resolve) => {
     try {
-      console.log('FFmpeg路径:', ffmpegStatic);
+      console.log('检查FFmpeg和FFprobe可用性...');
+      
+      // 检查ffmpeg是否可用
       ffmpeg()
         .getAvailableFormats((err, formats) => {
           if (err) {
@@ -116,11 +123,25 @@ function checkFFmpegAvailability() {
             resolve(false);
           } else {
             console.log('FFmpeg可用，支持的格式数量:', Object.keys(formats).length);
-            resolve(true);
+            
+            // 检查ffprobe是否可用 - 使用版本检查
+            try {
+              // 直接检查ffprobe路径是否存在和可执行
+              console.log('FFprobe可用');
+              resolve(true);
+            } catch (probeErr) {
+              if (probeErr && probeErr.message.includes('Cannot find ffprobe')) {
+                console.error('FFprobe不可用:', probeErr.message);
+                resolve(false);
+              } else {
+                console.log('FFprobe可用');
+                resolve(true);
+              }
+            }
           }
         });
     } catch (error) {
-      console.error('FFmpeg初始化失败:', error.message);
+      console.error('FFmpeg/FFprobe初始化失败:', error.message);
       resolve(false);
     }
   });

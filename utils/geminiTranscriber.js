@@ -126,7 +126,7 @@ async function transcribeWithGemini(audioPath) {
     // 使用新的错误处理方式
     if (error.name === "ApiError") {
       console.error("API错误状态:", error.status);
-      console.error("API错误信息:", error.message);
+      console.error("API错误信息:", error);
     }
 
     if (error.message.includes("API key")) {
