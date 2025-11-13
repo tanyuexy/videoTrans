@@ -41,12 +41,11 @@
             <el-main class="main-content">
                 <el-row :gutter="16" class="full-height">
                     <!-- 第一栏：视频上传 -->
-                    <el-col :span="6">
+                    <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
                         <el-card class="column-card" shadow="hover">
                             <template #header>
                                 <div class="card-header">
-                                    <el-icon><Upload /></el-icon>
-                                    <span>视频上传</span>
+                                    <span>视频/音频上传</span>
                                 </div>
                             </template>
 
@@ -60,15 +59,15 @@
                                 :auto-upload="false"
                                 :on-change="handleVideoFileChange"
                                 :before-upload="beforeVideoUpload"
-                                accept="video/*"
+                                accept="video/*,audio/*"
                                 :file-list="selectedVideos">
                                 <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
                                 <div class="el-upload__text">
-                                    将视频文件拖拽到此处，或<em>点击上传</em>
+                                    将视频/音频文件拖拽到此处，或<em>点击上传</em>
                                 </div>
                                 <template #tip>
                                     <div class="el-upload__tip">
-                                        支持 MP4, AVI, MOV, WMV 等格式，单个文件最大1Gb
+                                        支持视频/音频：MP4, AVI, MOV, WMV, MKV, WEBM, MP3, M4A, AAC, OGG, FLAC, WAV；单个文件最大1Gb
                                     </div>
                                 </template>
                             </el-upload>
@@ -110,11 +109,10 @@
                     </el-col>
 
                     <!-- 第二栏：原始文案 -->
-                    <el-col :span="6">
+                    <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
                         <el-card class="column-card" shadow="hover">
                             <template #header>
                                 <div class="card-header">
-                                    <el-icon><Document /></el-icon>
                                     <span>原始文案</span>
                                     <div class="header-actions">
                                         <el-button type="danger" size="small" @click="deleteSelectedTranscriptions" :disabled="selectedTranscriptions.length === 0">
@@ -175,16 +173,19 @@
                     </el-col>
 
                     <!-- 第三栏：翻译结果 -->
-                    <el-col :span="6">
+                    <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
                         <el-card class="column-card" shadow="hover">
                             <template #header>
                                 <div class="card-header">
-                                    <el-icon><ChatDotSquare /></el-icon>
                                     <span>翻译结果</span>
                                     <div class="header-actions">
                                         <el-button type="danger" size="small" @click="deleteSelectedTranslations" :disabled="selectedTranslations.length === 0">
                                             <el-icon><Delete /></el-icon>
                                             删除选中
+                                        </el-button>
+                                        <el-button type="primary" size="small" @click="addManualTranslation">
+                                            <el-icon><Plus /></el-icon>
+                                            新增
                                         </el-button>
                                         <el-button type="primary" size="small" @click="generateSelectedSpeech" :disabled="selectedTranslations.length === 0">
                                             <el-icon><Microphone /></el-icon>
@@ -239,12 +240,11 @@
                     </el-col>
 
                     <!-- 第四栏：音频列表 -->
-                    <el-col :span="6">
+                    <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
                         <el-card class="column-card" shadow="hover">
                             <template #header>
                                 <div class="card-header">
                                     <div class="header-title">
-                                        <el-icon><Headphone /></el-icon>
                                         <span>音频列表</span>
                                     </div>
                                     <div class="header-actions">
@@ -341,9 +341,6 @@
                     filterable
                     placeholder="请选择目标语言"
                     style="width: 100%"
-                    :max-collapse-tags="3"
-                    collapse-tags
-                    collapse-tags-tooltip
                 >
                     <el-option
                         v-for="lang in availableLanguages"
@@ -376,6 +373,9 @@
         <!-- 语音生成设置弹窗 -->
         <el-dialog v-model="speechDialogVisible" title="语音生成设置" width="50%">
             <el-form :model="speechSettings" label-width="120px">
+                <el-form-item label="开启段落间隔">
+                    <el-switch v-model="speechSettings.enableParagraphInterval" />
+                </el-form-item>
                 <el-form-item label="语音类型">
                     <div class="voice-selection-container">
                         <el-select v-model="speechSettings.voiceName" placeholder="请选择语音类型" filterable class="voice-select">
@@ -402,6 +402,7 @@
                     <div class="interval-setting-container">
                         <el-slider
                             v-model="speechSettings.paragraphInterval"
+                            :disabled="!speechSettings.enableParagraphInterval"
                             :min="0"
                             :max="3"
                             :step="0.1"
@@ -412,7 +413,7 @@
                         />
                         <div class="interval-description">
                             <el-text type="info" size="small">
-                                当文本包含换行符时，会在段落间添加指定时长的静音间隔
+                                当开启后，文本中的换行会插入指定时长的静音间隔
                             </el-text>
                         </div>
                     </div>
@@ -424,6 +425,36 @@
                     <el-button type="primary" @click="confirmGenerateSpeech" :loading="isGeneratingSpeech">
                         确认生成
                     </el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+        <!-- 新增翻译内容弹窗 -->
+        <el-dialog v-model="manualTranslationDialogVisible" title="新增翻译" width="50%">
+            <el-form :model="manualTranslationForm" label-width="120px">
+                <el-form-item label="翻译语言（可选）">
+                    <el-select v-model="manualTranslationForm.language" placeholder="不选择则自动识别" filterable clearable style="width: 100%;">
+                        <el-option
+                            v-for="lang in availableLanguages"
+                            :key="lang.code"
+                            :label="lang.name"
+                            :value="lang.code"
+                        />
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="翻译内容">
+                    <el-input
+                        v-model="manualTranslationForm.text"
+                        type="textarea"
+                        :autosize="{ minRows: 6, maxRows: 12 }"
+                        placeholder="请输入要添加的翻译内容..."
+                    />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="manualTranslationDialogVisible = false">取消</el-button>
+                    <el-button type="primary" @click="confirmAddManualTranslation">确认添加</el-button>
                 </span>
             </template>
         </el-dialog>

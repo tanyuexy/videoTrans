@@ -53,16 +53,21 @@ const upload = multer({
     fileSize: 1024 * 1024 * 1024 // 1GB限制
   },
   fileFilter: (req, file, cb) => {
-    // 允许的视频格式
-    const allowedTypes = /mp4|avi|mov|wmv|flv|webm|wav|mkv/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    // 允许的视频/音频扩展名
+    const allowedExts = new Set([
+      '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv',
+      '.mp3', '.m4a', '.aac', '.ogg', '.flac', '.wav'
+    ]);
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const extnameOk = allowedExts.has(ext);
+    // 允许的MIME前缀（避免把扩展名正则去匹配 mimetype 导致 mp3 的 audio/mpeg 被误拒）
+    const mime = file.mimetype || '';
+    const mimetypeOk = mime.startsWith('audio/') || mime.startsWith('video/');
 
-    if (mimetype && extname) {
+    if (mimetypeOk && extnameOk) {
       return cb(null, true);
-    } else {
-      cb(new Error('只支持视频文件格式: mp4, avi, mov, wmv, flv, webm, mkv'));
     }
+    cb(new Error('只支持视频/音频文件格式: mp4, avi, mov, wmv, flv, webm, mkv, mp3, m4a, aac, ogg, flac, wav'));
   }
 });
 

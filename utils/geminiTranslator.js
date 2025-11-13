@@ -10,7 +10,7 @@ const genAI = new GoogleGenAI({ apiKey: apiKey });
 
 // 支持的语言配置
 const SUPPORTED_LANGUAGES = [
-  'US', 'AR', 'BR', 'DE', 'ES', 'FR', 'ID', 'IT', 'JP', 'KR', 
+  'US', 'AR', 'DE', 'ES', 'FR', 'ID', 'IT', 'JP', 'KR', 
   'NL', 'PL', 'TH', 'TR', 'TW', 'VN', 'RU', 'PT', 'SV', 'FI', 'MS', 'IN'
 ];
 
@@ -24,7 +24,7 @@ function getSupportedLanguages() {
 
 /**
  * 验证语言代码是否支持
- * @param {string} languageCode - 语言代码 (US, AR, BR, DE, ES, FR, ID, IT, JP, KR, NL, PL, TH, TR, TW, VN, RU, PT, SV, FI, MS, IN)
+ * @param {string} languageCode - 语言代码 (US, AR, DE, ES, FR, ID, IT, JP, KR, NL, PL, TH, TR, TW, VN, RU, PT, SV, FI, MS, IN)
  * @returns {boolean} 是否支持该语言
  */
 function isLanguageSupported(languageCode) {
@@ -34,7 +34,7 @@ function isLanguageSupported(languageCode) {
 /**
  * 使用Gemini API翻译文本
  * @param {string} text - 要翻译的文本
- * @param {string} targetLanguage - 目标语言代码 (US, AR, BR, DE, ES, FR, ID, IT, JP, KR, NL, PL, TH, TR, TW, VN, RU, PT, SV, FI, MS, IN)
+ * @param {string} targetLanguage - 目标语言代码 (US, AR, DE, ES, FR, ID, IT, JP, KR, NL, PL, TH, TR, TW, VN, RU, PT, SV, FI, MS, IN)
  * @returns {Promise<string>} 翻译后的文本
  */
 async function translateText(text, targetLanguage) {

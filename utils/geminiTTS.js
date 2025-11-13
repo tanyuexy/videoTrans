@@ -330,12 +330,18 @@ async function generateSpeech(text, voiceName = 'Kore', outputPath, paragraphInt
     console.log(`正在生成语音文件: ${voiceName} 语音...`);
     console.log(`文本内容: ${text}`);
 
-    // 检测段落
-    const paragraphs = detectParagraphs(text);
-    console.log(`检测到 ${paragraphs.length} 个段落`);
+    // 当未开启段落间隔时，直接整段生成（一次性调用，不做段落识别）
+    if (paragraphInterval <= 0) {
+      console.log('段落间隔未开启，整段合成语音（不做分段识别）');
+      return await generateSingleParagraphSpeech(text, voiceName, outputPath);
+    }
 
-    // 如果只有一个段落或没有间隔，使用原来的方法
-    if (paragraphs.length === 1 || paragraphInterval <= 0) {
+    // 已开启段落间隔时才进行段落检测
+    const paragraphs = detectParagraphs(text);
+    console.log(`已开启段落间隔，检测到 ${paragraphs.length} 个段落`);
+
+    // 若仅一个段落，则直接整段生成
+    if (paragraphs.length === 1) {
       return await generateSingleParagraphSpeech(text, voiceName, outputPath);
     }
 

@@ -36,14 +36,10 @@ body {
   gap: 8px;
 }
 
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
 .main-content {
   padding: 16px;
   height: calc(100vh - 60px);
+  overflow: auto;
 }
 
 .full-height {
@@ -67,12 +63,15 @@ body {
   border-radius: 8px 8px 0 0;
   border-bottom: 1px solid #dee2e6;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
 }
 
 .column-card .el-card__body {
   padding: 20px;
   flex: 1;
-  overflow: visible;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -84,6 +83,7 @@ body {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  min-height: 40px;
 }
 
 .header-title {
@@ -92,6 +92,7 @@ body {
   gap: 8px;
   font-weight: 600;
   font-size: 16px;
+  line-height: 1;
 }
 
 .card-header > span {
@@ -100,6 +101,7 @@ body {
   gap: 8px;
   font-weight: 600;
   font-size: 16px;
+  line-height: 1;
 }
 
 /* 确保图标在深色背景下可见 */
@@ -126,7 +128,21 @@ body {
   display: flex;
   gap: 6px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+
+/* 统一操作区按钮与勾选框的垂直居中与高度 */
+.header-actions .el-button--small {
+  height: 28px;
+  line-height: 28px;
+  padding: 0 10px;
+}
+.header-actions .el-checkbox {
+  display: flex;
+  align-items: center;
+}
+.header-actions .el-checkbox__label {
+  line-height: 1;
 }
 
 /* 上传组件样式 */
@@ -273,9 +289,14 @@ body {
 
 .content-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column; /* 标题一行，功能按钮换到下一行 */
+  align-items: stretch;
+  gap: 8px;
   margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 6px;
 }
 
 .content-title {
@@ -283,16 +304,43 @@ body {
   align-items: center;
   gap: 8px;
   flex: 1;
+  min-width: 0;
 }
 
 .source-text {
   font-size: 12px;
   color: #6c757d;
   margin-left: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 50%;
+  background: #f1f3f4;
+  border-radius: 8px;
+  padding: 2px 8px;
 }
 
 .content-textarea {
   margin-top: 8px;
+}
+
+.content-header .el-button-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap; /* 换行展示 */
+  justify-content: flex-start; /* 左对齐 */
+}
+
+.content-header .el-button-group .el-button {
+  height: 28px;
+  line-height: 28px;
+  padding: 0 10px;
+}
+
+.content-item .el-textarea__inner {
+  min-height: 100px;
+  max-height: 180px;
 }
 
 .content-textarea .el-textarea__inner {
@@ -509,6 +557,10 @@ body {
   .main-content {
     padding: 12px;
   }
+
+  .content-item {
+    padding: 14px;
+  }
   
   .column-card .el-card__body {
     padding: 16px;
@@ -527,6 +579,10 @@ body {
   .main-content {
     height: auto;
     padding: 8px;
+  }
+
+  .content-item {
+    padding: 12px;
   }
   
   .column-card {
@@ -557,6 +613,10 @@ body {
   
   .main-title {
     font-size: 16px;
+  }
+
+  .header-actions .el-button {
+    padding: 6px 10px;
   }
   
   /* 音频列表移动端优化 */
@@ -628,6 +688,26 @@ body {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+/* 顶部头部粘性，保证小屏也方便操作 */
+.header-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* 更友好的滚动条样式（仅影响支持的浏览器） */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .voice-select {

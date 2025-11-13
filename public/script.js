@@ -54,10 +54,18 @@ const app = createApp({
         const isGeneratingSpeech = ref(false);
         const speechSettings = reactive({
             voiceName: '',
+            enableParagraphInterval: false,
             paragraphInterval: 0.3 // 默认0.5秒间隔
         });
         const availableVoices = ref([]);
         
+        // 新增翻译弹窗
+        const manualTranslationDialogVisible = ref(false);
+        const manualTranslationForm = reactive({
+            text: '',
+            language: ''
+        });
+
         // 语音试听
         const isPlayingVoiceSample = ref(false);
         const voiceSampleAudio = ref(null);
@@ -114,6 +122,42 @@ const app = createApp({
             return tagTypes[hash % tagTypes.length];
         };
 
+        // 语言检测（前端启发式，覆盖主要语言）
+        const detectLanguageCode = (text) => {
+            const t = (text || '').trim();
+            if (!t) return 'US';
+            // 字符集快速判断
+            if (/[\u0600-\u06FF]/.test(t)) return 'AR'; // 阿拉伯语
+            if (/[\u3040-\u30FF]/.test(t)) return 'JP'; // 日语（平假名/片假名）
+            if (/[\uAC00-\uD7AF]/.test(t)) return 'KR'; // 韩语
+            if (/[\u0E00-\u0E7F]/.test(t)) return 'TH'; // 泰语
+            if (/[\u0400-\u04FF]/.test(t)) return 'RU'; // 俄语（西里尔）
+            if (/[\u0900-\u097F]/.test(t)) return 'IN'; // 印地语（天城文）
+            if (/[\u4E00-\u9FFF]/.test(t)) return 'TW'; // 中文（统一归为TW）
+            if (/[ăâêôơưđÀ-ỹ]/i.test(t)) return 'VN'; // 越南语
+            if (/[ąćęłńóśźż]/i.test(t)) return 'PL'; // 波兰语
+            if (/[ğüşşıİçö]/i.test(t)) return 'TR'; // 土耳其语
+            if (/[äöüß]/i.test(t)) return 'DE'; // 德语
+            if (/[àâæçéèêëîïôœùûüÿ]/i.test(t)) return 'FR'; // 法语
+            if (/[ãõçáâàéêíóôõúü]/i.test(t)) return 'PT'; // 葡萄牙语
+            if (/[áéíñóúü¿¡]/i.test(t)) return 'ES'; // 西班牙语
+            if (/[åäö]/i.test(t)) return 'SV'; // 瑞典语（也与FI重叠，优先SV）
+            if (/[äö]/i.test(t)) return 'FI'; // 芬兰语
+
+            // 常用词启发（小概率误判，尽量简单覆盖）
+            const lower = t.toLowerCase();
+            if (/\b(el|la|de|que|y|en|los|del)\b/.test(lower)) return 'ES';
+            if (/\b(le|la|les|des|et|est|pour|avec)\b/.test(lower)) return 'FR';
+            if (/\bder|die|das|und|ist|mit|nicht\b/.test(lower)) return 'DE';
+            if (/\bche|gli|del|della|per|non|una|uno\b/.test(lower)) return 'IT';
+            if (/\bde|het|een|en|niet|voor|met\b/.test(lower)) return 'NL';
+            if (/\byang|itu|dan|di\b/.test(lower)) return 'ID'; // 印度尼西亚语
+            if (/\banda|yang|tidak|dengan\b/.test(lower)) return 'MS'; // 马来语
+            if (/\boch|att|det|som|är|inte\b/.test(lower)) return 'SV'; // 瑞典语
+
+            return 'US'; // 默认英语
+        };
+
         const generateId = () => {
             return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         };
@@ -124,15 +168,16 @@ const app = createApp({
         };
 
         const beforeVideoUpload = (file) => {
-            const isVideo = file.type.startsWith('video/');
+            const isVideo = file.type && file.type.startsWith('video/');
+            const isAudio = file.type && file.type.startsWith('audio/');
             const isLt1G = file.size / 1024 / 1024 < 1024;
 
-            if (!isVideo) {
-                ElMessage.error('只能上传视频文件!');
+            if (!isVideo && !isAudio) {
+                ElMessage.error('只能上传视频或音频文件!');
                 return false;
             }
             if (!isLt1G) {
-                ElMessage.error('视频文件大小不能超过 1GB!');
+                ElMessage.error('文件大小不能超过 1GB!');
                 return false;
             }
             return false; // 阻止自动上传
@@ -159,42 +204,70 @@ const app = createApp({
                     progressText.value = `正在转录: ${file.name}`;
                     progressPercentage.value = (i / selectedVideos.value.length) * 100;
                     progressPercentage.value = progressPercentage.value.toFixed(2);
-                    const formData = new FormData();
-                    formData.append('video', file.raw);
 
-                    const response = await fetch('/api/transcribe', {
-                        method: 'POST',
-                        body: formData
-                    });
+                    const isVideo = file.raw && file.raw.type && file.raw.type.startsWith('video/');
+                    const isAudio = file.raw && file.raw.type && file.raw.type.startsWith('audio/');
 
-                    if (!response.ok) {
-                        throw new Error(`转录失败: ${response.statusText}`);
-                    }
+                    if (isVideo) {
+                        const formData = new FormData();
+                        formData.append('video', file.raw);
 
-                    // 处理流式响应
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
+                        const response = await fetch('/api/transcribe', {
+                            method: 'POST',
+                            body: formData
+                        });
 
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
+                        if (!response.ok) {
+                            throw new Error(`转录失败: ${response.statusText}`);
+                        }
 
-                        const chunk = decoder.decode(value);
-                        const lines = chunk.split('\n');
+                        // 处理流式响应（视频端点）
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
 
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                try {
-                                    const data = JSON.parse(line.slice(6));
-                                    if (data.type === 'complete') {
-                                        // 添加转录结果
-                                        addTranscription(data.data.transcription, file.name);
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+
+                            const chunk = decoder.decode(value);
+                            const lines = chunk.split('\n');
+
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    try {
+                                        const data = JSON.parse(line.slice(6));
+                                        if (data.type === 'complete') {
+                                            addTranscription(data.data.transcription, file.name);
+                                        }
+                                    } catch (e) {
+                                        console.error('解析数据失败:', e);
                                     }
-                                } catch (e) {
-                                    console.error('解析数据失败:', e);
                                 }
                             }
                         }
+                    } else if (isAudio) {
+                        const formData = new FormData();
+                        formData.append('audio', file.raw);
+
+                        const response = await fetch('/api/transcribe-audio', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`转录失败: ${response.statusText}`);
+                        }
+
+                        const result = await response.json();
+                        if (result && result.success && result.transcription) {
+                            addTranscription(result.transcription, file.name);
+                        } else if (result && result.transcription) {
+                            addTranscription(result.transcription, file.name);
+                        } else {
+                            throw new Error('音频转录返回格式异常');
+                        }
+                    } else {
+                        console.warn('未知文件类型，跳过:', file.name);
                     }
                 }
 
@@ -222,6 +295,27 @@ const app = createApp({
                 language: 'zh',
                 selected: false
             });
+        };
+
+        // 在翻译结果列手动新增文本（自动识别语言并打标签）
+        const addManualTranslation = () => {
+            manualTranslationForm.text = '';
+            manualTranslationForm.language = '';
+            manualTranslationDialogVisible.value = true;
+        };
+
+        const confirmAddManualTranslation = () => {
+            const text = (manualTranslationForm.text || '').trim();
+            if (!text) {
+                ElMessage.warning('内容不能为空');
+                return;
+            }
+            const lang = manualTranslationForm.language || detectLanguageCode(text);
+            addTranslation(text, lang, '手动输入');
+            manualTranslationDialogVisible.value = false;
+            manualTranslationForm.text = '';
+            manualTranslationForm.language = '';
+            ElMessage.success(`已添加，语言：${getLanguageName(lang)}`);
         };
 
         const addManualText = async () => {
@@ -510,7 +604,7 @@ const app = createApp({
                             targetLanguage: translation.language,
                             voiceName: speechSettings.voiceName,
                             transcriptionId: translation.id,
-                            paragraphInterval: speechSettings.paragraphInterval
+                            paragraphInterval: speechSettings.enableParagraphInterval ? speechSettings.paragraphInterval : 0
                         })
                     });
                     if (!response.ok) {
@@ -969,6 +1063,8 @@ const app = createApp({
             selectAllTranscriptions,
             selectAllAudio,
             availableLanguages,
+            manualTranslationDialogVisible,
+            manualTranslationForm,
             
             // 计算属性
             selectedTranscriptions,
@@ -984,6 +1080,7 @@ const app = createApp({
             removeVideoFile,
             processVideos,
             addManualText,
+            addManualTranslation,
             removeTranscription,
             showTranslateDialog,
             handleTranslateDialogClose,
@@ -1002,6 +1099,7 @@ const app = createApp({
             generateSelectedSpeech,
             generateSingleSpeech,
             confirmGenerateSpeech,
+            confirmAddManualTranslation,
             toggleAudioPlayback,
             onAudioLoaded,
             onTimeUpdate,
