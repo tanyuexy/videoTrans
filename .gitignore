@@ -192,3 +192,5 @@ docs/generated/
 # Application specific
 TTS_功能说明.md
 新UI使用说明.md
+
+!soundcheck/*.wav
