@@ -415,7 +415,7 @@ app.get('/api/voice-sample/:voiceName', (req, res) => {
 // 语音生成端点
 app.post('/api/generate-speech', async (req, res) => {
   try {
-    const { text, targetLanguage, voiceName, transcriptionId, paragraphInterval } = req.body;
+    const { text, targetLanguage, voiceName, transcriptionId, paragraphInterval, skipTranslate } = req.body;
     
     // 验证必需参数
     if (!text || !text.trim()) {
@@ -440,18 +440,23 @@ app.post('/api/generate-speech', async (req, res) => {
     console.log(`原始文本: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
     console.log(`段落间隔: ${intervalSeconds}秒`);
     
-    // 1. 翻译文本
+    // 1. 翻译文本（可跳过）
     let translatedText;
-    try {
-      translatedText = await translateText(text, targetLanguage);
-      console.log(`翻译完成: ${translatedText.substring(0, 100)}${translatedText.length > 100 ? '...' : ''}`);
-    } catch (translateError) {
-      console.error('翻译失败:', translateError);
-      return res.status(500).json({
-        success: false,
-        error: '文本翻译失败',
-        details: translateError.message
-      });
+    if (skipTranslate === true) {
+      translatedText = text;
+      console.log('已跳过翻译，直接使用传入文本进行语音合成');
+    } else {
+      try {
+        translatedText = await translateText(text, targetLanguage);
+        console.log(`翻译完成: ${translatedText.substring(0, 100)}${translatedText.length > 100 ? '...' : ''}`);
+      } catch (translateError) {
+        console.error('翻译失败:', translateError);
+        return res.status(500).json({
+          success: false,
+          error: '文本翻译失败',
+          details: translateError.message
+        });
+      }
     }
     
     // 2. 生成音频文件名 - 格式：月日_语言_序号

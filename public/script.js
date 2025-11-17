@@ -604,7 +604,8 @@ const app = createApp({
                             targetLanguage: translation.language,
                             voiceName: speechSettings.voiceName,
                             transcriptionId: translation.id,
-                            paragraphInterval: speechSettings.enableParagraphInterval ? speechSettings.paragraphInterval : 0
+                            paragraphInterval: speechSettings.enableParagraphInterval ? speechSettings.paragraphInterval : 0,
+                            skipTranslate: true
                         })
                     });
                     if (!response.ok) {
