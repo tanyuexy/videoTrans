@@ -187,6 +187,10 @@
                                             <el-icon><Plus /></el-icon>
                                             新增
                                         </el-button>
+                                        <el-button type="success" size="small" @click="downloadSelectedTranslationsAsTxt" :disabled="selectedTranslations.length === 0">
+                                            <el-icon><Download /></el-icon>
+                                            下载TXT
+                                        </el-button>
                                         <el-button type="primary" size="small" @click="generateSelectedSpeech" :disabled="selectedTranslations.length === 0">
                                             <el-icon><Microphone /></el-icon>
                                             生成语音

@@ -1,10 +1,11 @@
+import 'dotenv/config'
+
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs-extra';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
-import 'dotenv/config'
 import { dirname } from 'path';
 import https from 'https';
 import { extractAudioFromVideoAdaptive, checkFFmpegAvailability } from './utils/audioExtractor.js';

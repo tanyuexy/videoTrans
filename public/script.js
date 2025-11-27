@@ -848,6 +848,38 @@ const app = createApp({
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
         };
+        
+        // 批量下载选中的翻译为单一TXT（格式：语言代码一行，文本一行）
+        const downloadSelectedTranslationsAsTxt = () => {
+            const selected = selectedTranslations.value;
+            if (selected.length === 0) {
+                ElMessage.warning('请选择要下载的翻译文本');
+                return;
+            }
+            const lines = [];
+            selected.forEach(item => {
+                const code = ((item.language && String(item.language)) || detectLanguageCode(item.text) || 'US').toLowerCase();
+                const text = (item.text || '').trim();
+                lines.push(code);
+                lines.push(text);
+                lines.push(''); // 分隔空行
+            });
+            const content = lines.join('\n');
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const filename = `${yyyy}${mm}${dd}.txt`;
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            ElMessage.success('TXT 已生成并开始下载');
+        };
 
         const clearAllData = async () => {
             try {
@@ -1114,6 +1146,7 @@ const app = createApp({
             removeAudio,
             copyText,
             downloadText,
+            downloadSelectedTranslationsAsTxt,
             clearAllData,
             playVoiceSample,
             stopVoiceSample,
