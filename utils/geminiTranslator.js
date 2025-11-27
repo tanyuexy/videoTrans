@@ -3,7 +3,7 @@ import {
 } from "@google/genai";
 
 let apiKey =
-  process.env.GEMINI_API_KEY || "AIzaSyDFgPeYemKTYlx5X_iPzJUV7F9QLB1kRgs";
+  (process.env.GEMINI_API_KEY || "").trim();
 
 // 初始化Gemini客户端
 const genAI = new GoogleGenAI({ apiKey: apiKey });

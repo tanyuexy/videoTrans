@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+import 'dotenv/config'
 import { dirname } from 'path';
 import https from 'https';
 import { extractAudioFromVideoAdaptive, checkFFmpegAvailability } from './utils/audioExtractor.js';
@@ -16,8 +16,7 @@ import { generateSpeech, validateTTSConfig, getVoiceOptions, getVoiceOptionsWith
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const app = express();
-const PORT = process.env.PORT || 3005;
-dotenv.config();
+const PORT = process.env.PORT || 3005;  
 
 // 中间件
 app.use(cors({
