@@ -237,7 +237,11 @@ const app = createApp({
                                     try {
                                         const data = JSON.parse(line.slice(6));
                                         if (data.type === 'complete') {
-                                            addTranscription(data.data.transcription, file.name);
+                                            addTranscription(
+                                                data.data.originalTranscription,
+                                                data.data.chineseTranscription,
+                                                file.name
+                                            );
                                         }
                                     } catch (e) {
                                         console.error('解析数据失败:', e);
@@ -259,10 +263,18 @@ const app = createApp({
                         }
 
                         const result = await response.json();
-                        if (result && result.success && result.transcription) {
-                            addTranscription(result.transcription, file.name);
-                        } else if (result && result.transcription) {
-                            addTranscription(result.transcription, file.name);
+                        if (result && result.success && result.originalTranscription && result.chineseTranscription) {
+                            addTranscription(
+                                result.originalTranscription,
+                                result.chineseTranscription,
+                                file.name
+                            );
+                        } else if (result && (result.originalTranscription || result.chineseTranscription)) {
+                            addTranscription(
+                                result.originalTranscription || '',
+                                result.chineseTranscription || '',
+                                file.name
+                            );
                         } else {
                             throw new Error('音频转录返回格式异常');
                         }
@@ -287,10 +299,11 @@ const app = createApp({
         };
 
         // 文案管理方法
-        const addTranscription = (text, source) => {
+        const addTranscription = (originalText, chineseText, source) => {
             transcriptions.value.push({
                 id: generateId(),
-                text: text,
+                text: chineseText,
+                originalText: originalText,
                 source: source,
                 language: 'zh',
                 selected: false
@@ -343,7 +356,7 @@ const app = createApp({
                         return true;
                     }
                 });
-                addTranscription(text.trim(), '手动输入');
+                addTranscription(text.trim(), text.trim(), '手动输入');
                 ElMessage.success('文案添加成功');
             } catch (error) {
                 // 用户取消操作

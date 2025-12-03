@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import https from 'https';
 import { extractAudioFromVideoAdaptive, checkFFmpegAvailability } from './utils/audioExtractor.js';
-import { transcribeWithGemini, validateGeminiConfig } from './utils/geminiTranscriber.js';
+import { transcribeWithGemini, transcribeBothWithGemini, validateGeminiConfig } from './utils/geminiTranscriber.js';
 import { translateText, getSupportedLanguages } from './utils/geminiTranslator.js';
 import { generateSpeech, validateTTSConfig, getVoiceOptions, getVoiceOptionsWithDescriptions } from './utils/geminiTTS.js';
 
@@ -109,13 +109,14 @@ app.post('/api/transcribe', upload.single('video'), async (req, res) => {
       await extractAudioFromVideoAdaptive(videoPath, audioPath);
       sendUpdate('status', '高质量音频提取完成，开始转录...');
 
-      // 2. 使用Gemini API转录音频
-      console.log('正在使用Gemini API转录音频...');
-      const transcription = await transcribeWithGemini(audioPath);
+      // 2. 使用Gemini API同时获取原文与中文
+      console.log('正在使用Gemini API进行原文与中文双路转写...');
+      const { original: originalTranscription, chinese: chineseTranscription } = await transcribeBothWithGemini(audioPath);
 
       // 3. 发送完成信息
       sendUpdate('complete', {
-        transcription: transcription,
+        originalTranscription,
+        chineseTranscription,
         audioFileName: audioFileName,
         videoFileName: videoFileName,
         message: '转录完成'
@@ -176,7 +177,7 @@ app.post('/api/transcribe-audio', upload.single('audio'), async (req, res) => {
     console.log(`正在转录音频文件: ${req.file.originalname}`);
 
     // 使用Gemini API转录音频
-    const transcription = await transcribeWithGemini(audioPath);
+    const { original: originalTranscription, chinese: chineseTranscription } = await transcribeBothWithGemini(audioPath);
 
     // 清理临时文件
     if (fs.existsSync(audioPath)) {
@@ -186,7 +187,8 @@ app.post('/api/transcribe-audio', upload.single('audio'), async (req, res) => {
     console.log('音频转录完成');
     res.json({
       success: true,
-      transcription: transcription,
+      originalTranscription,
+      chineseTranscription,
       message: '音频转录完成'
     });
 
@@ -227,12 +229,13 @@ app.post('/api/transcribe-extracted-audio', async (req, res) => {
     console.log(`正在转录已提取的音频文件: ${audioName}`);
 
     // 使用Gemini API转录音频
-    const transcription = await transcribeWithGemini(audioPath);
+    const { original: originalTranscription, chinese: chineseTranscription } = await transcribeBothWithGemini(audioPath);
 
     console.log('音频转录完成');
     res.json({
       success: true,
-      transcription: transcription,
+      originalTranscription,
+      chineseTranscription,
       message: '音频转录完成'
     });
 

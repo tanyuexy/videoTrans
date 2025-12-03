@@ -151,6 +151,9 @@
                                                 <el-button @click="copyText(item.text)" size="small">
                                                     复制
                                                 </el-button>
+                                                <el-button @click="copyText(item.originalText)" size="small">
+                                                    复制原文
+                                                </el-button>
                                                 <el-button @click="downloadText(item.text, item.source)" size="small">
                                                     下载
                                                 </el-button>
