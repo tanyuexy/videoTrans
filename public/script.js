@@ -1020,8 +1020,8 @@ const app = createApp({
       // 获取语言配置（默认使用 google）
       fetchSupportedLanguages();
 
-      // 获取语音选项（根据 speechSettings.model）
-      fetchVoiceOptions(speechSettings.model);
+      // 仅在挂载时加载所有模型的语音选项缓存（后续切换只在缓存间切换）
+      voicesLoadedPromise = loadAllVoiceOptions();
     });
 
     const checkServerHealth = async () => {
@@ -1095,42 +1095,81 @@ const app = createApp({
     };
 
     // 获取可用的语音选项
+    // 语音选项缓存，挂载时一次性加载所有模型的选项，后续切换仅在缓存间切换
+    const availableVoicesCache = reactive({
+      google: [],
+      aliyun: []
+    });
+    // 挂载时的加载 Promise（用于在加载未完成时等待）
+    let voicesLoadedPromise = null;
+
+    const mapVoiceItems = (items) =>
+      (items || []).map((v) => {
+        return {
+          name: v.name,
+          description: v.description || "",
+          displayName:
+            v.displayName ||
+            `${v.name || v.voice || v.id}${v.description ? " - " + v.description : ""}`,
+          auditionAudio: v.auditionAudio || v.sampleUrl || null,
+          voice: v.voice
+        };
+      });
+
+    // 从缓存中切换到指定模型的语音列表（不做网络请求）
     const fetchVoiceOptions = async (model = "google") => {
+      // 如果挂载时的加载尚未完成，等待其完成
+      if (voicesLoadedPromise) {
+        await voicesLoadedPromise;
+      }
+      const key = model === "aliyun" || model === "ali" ? "aliyun" : "google";
+      availableVoices.value = availableVoicesCache[key] || [];
+      if (availableVoices.value.length > 0 && !speechSettings.voiceName) {
+        speechSettings.voiceName = availableVoices.value[0].name;
+      }
+      return;
+    };
+
+    // 在挂载时调用一次，异步并行拉取 google 与 aliyun 的语音选项，填充缓存
+    const loadAllVoiceOptions = async () => {
       try {
-        const response = await fetch(
-          `/api/voice-options?model=${encodeURIComponent(model)}`
-        );
-        if (response.ok) {
-          const result = await response.json();
+        const [respGoogle, respAliyun] = await Promise.all([
+          fetch(`/api/voice-options?model=${encodeURIComponent("google")}`),
+          fetch(`/api/voice-options?model=${encodeURIComponent("aliyun")}`)
+        ]);
+
+        if (respGoogle.ok) {
+          const result = await respGoogle.json();
           if (result.success) {
-            // 兼容不同后端返回格式，构建统一的 voice 对象列表
-            availableVoices.value = (result.voices || []).map((v) => {
-              return {
-                name: v.name,
-                description: v.description || "",
-                displayName:
-                  v.displayName ||
-                  `${v.name || v.voice || v.id}${
-                    v.description ? " - " + v.description : ""
-                  }`,
-                auditionAudio: v.auditionAudio || v.sampleUrl || null,
-                voice: v.voice
-              };
-            });
-            // 设置默认语音
-            if (availableVoices.value.length > 0 && !speechSettings.voiceName) {
-              speechSettings.voiceName = availableVoices.value[0].name;
-            }
-            console.log("语音选项获取成功:", availableVoices.value);
+            availableVoicesCache.google = mapVoiceItems(result.voices || []);
           } else {
-            console.error("获取语音选项失败:", result.error);
-            ElMessage.error("获取语音选项失败");
+            console.error("获取 Google 语音选项失败:", result.error);
           }
         } else {
-          throw new Error("服务器响应错误");
+          console.error("获取 Google 语音选项服务器响应错误");
         }
+
+        if (respAliyun.ok) {
+          const result = await respAliyun.json();
+          if (result.success) {
+            // 阿里云返回格式可能已包含 name/voice/auditionAudio 等，复用 mapVoiceItems 保持兼容
+            availableVoicesCache.aliyun = mapVoiceItems(result.voices || []);
+          } else {
+            console.error("获取 Aliyun 语音选项失败:", result.error);
+          }
+        } else {
+          console.error("获取 Aliyun 语音选项服务器响应错误");
+        }
+
+        // 根据当前模型初始化显示列表
+        const initialKey = speechSettings.model === "aliyun" ? "aliyun" : "google";
+        availableVoices.value = availableVoicesCache[initialKey] || [];
+        if (availableVoices.value.length > 0 && !speechSettings.voiceName) {
+          speechSettings.voiceName = availableVoices.value[0].name;
+        }
+        console.log("语音选项缓存加载完成", availableVoicesCache);
       } catch (error) {
-        console.error("获取语音选项失败:", error);
+        console.error("加载语音选项失败:", error);
         ElMessage.error("获取语音选项失败，将使用默认选项");
         availableVoices.value = [];
         speechSettings.voiceName = "Kore";
