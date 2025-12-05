@@ -1068,7 +1068,26 @@ const app = createApp({
     };
 
     // 获取用于 TTS / 模型校验的语言列表（随模型变化）
+    // 增加缓存：挂载时一次性预加载 Google/aliyun 两套语言，后续切换直接从缓存使用
+    const availableTTSLanguagesCache = reactive({
+      google: [],
+      aliyun: []
+    });
+
     const fetchModelLanguages = async (model = "google") => {
+      const key = model === "aliyun" || model === "ali" ? "aliyun" : "google";
+      // 如果挂载时的加载尚未完成，等待其完成
+      if (voicesLoadedPromise) {
+        await voicesLoadedPromise;
+      }
+      // 优先使用缓存
+      if (availableTTSLanguagesCache[key] && availableTTSLanguagesCache[key].length > 0) {
+        availableTTSLanguages.value = availableTTSLanguagesCache[key];
+        console.log(`模型语言配置（来自缓存 ${key}）:`, availableTTSLanguages.value);
+        return;
+      }
+
+      // 缓存不存在时回退到网络请求并写入缓存
       try {
         const response = await fetch(
           `/api/supported-languages?model=${encodeURIComponent(model)}`
@@ -1076,10 +1095,9 @@ const app = createApp({
         if (response.ok) {
           const result = await response.json();
           if (result.success) {
-            availableTTSLanguages.value = (result.languages || []).map((l) => ({
-              code: l.code,
-              name: l.name
-            }));
+            const mapped = (result.languages || []).map((l) => ({ code: l.code, name: l.name }));
+            availableTTSLanguagesCache[key] = mapped;
+            availableTTSLanguages.value = mapped;
             console.log("模型语言配置获取成功:", availableTTSLanguages.value);
           } else {
             console.error("获取语言配置失败:", result.error);
@@ -1161,9 +1179,42 @@ const app = createApp({
           console.error("获取 Aliyun 语音选项服务器响应错误");
         }
 
-        // 根据当前模型初始化显示列表
+        // 并行拉取对应模型的语言列表（用于 TTS/校验），写入缓存
+        try {
+          const [langGoogleResp, langAliyunResp] = await Promise.all([
+            fetch(`/api/supported-languages?model=${encodeURIComponent("google")}`),
+            fetch(`/api/supported-languages?model=${encodeURIComponent("aliyun")}`)
+          ]);
+
+          if (langGoogleResp.ok) {
+            const r = await langGoogleResp.json();
+            if (r.success) {
+              availableTTSLanguagesCache.google = (r.languages || []).map((l) => ({ code: l.code, name: l.name }));
+            } else {
+              console.error("获取 Google 语言列表失败:", r.error);
+            }
+          } else {
+            console.error("获取 Google 语言列表服务器响应错误");
+          }
+
+          if (langAliyunResp.ok) {
+            const r = await langAliyunResp.json();
+            if (r.success) {
+              availableTTSLanguagesCache.aliyun = (r.languages || []).map((l) => ({ code: l.code, name: l.name }));
+            } else {
+              console.error("获取 Aliyun 语言列表失败:", r.error);
+            }
+          } else {
+            console.error("获取 Aliyun 语言列表服务器响应错误");
+          }
+        } catch (langErr) {
+          console.error("并行拉取模型语言列表失败:", langErr);
+        }
+
+        // 根据当前模型初始化显示列表与模型语言
         const initialKey = speechSettings.model === "aliyun" ? "aliyun" : "google";
         availableVoices.value = availableVoicesCache[initialKey] || [];
+        availableTTSLanguages.value = availableTTSLanguagesCache[initialKey] || [];
         if (availableVoices.value.length > 0 && !speechSettings.voiceName) {
           speechSettings.voiceName = availableVoices.value[0].name;
         }
