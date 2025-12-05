@@ -380,7 +380,13 @@
         <!-- 语音生成设置弹窗 -->
         <el-dialog v-model="speechDialogVisible" title="语音生成设置" width="50%">
             <el-form :model="speechSettings" label-width="120px">
-                <el-form-item label="开启段落间隔">
+                <el-form-item label="模型">
+                    <el-select v-model="speechSettings.model" placeholder="选择模型" style="width: 220px;">
+                        <el-option label="谷歌（默认）" value="google"></el-option>
+                        <el-option label="阿里云" value="aliyun"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="开启段落间隔" v-if="speechSettings.model === 'google'">
                     <el-switch v-model="speechSettings.enableParagraphInterval" />
                 </el-form-item>
                 <el-form-item label="语音类型">
@@ -405,7 +411,7 @@
                         </el-button>
                     </div>
                 </el-form-item>
-                <el-form-item label="段落间隔" style="align-items: center;">
+                <el-form-item label="段落间隔" style="align-items: center;" v-if="speechSettings.model === 'google'">
                     <div class="interval-setting-container">
                         <el-slider
                             v-model="speechSettings.paragraphInterval"

@@ -12,6 +12,13 @@ import { extractAudioFromVideoAdaptive, checkFFmpegAvailability } from './utils/
 import { transcribeWithGemini, transcribeBothWithGemini, validateGeminiConfig } from './utils/geminiTranscriber.js';
 import { translateText, getSupportedLanguages } from './utils/geminiTranslator.js';
 import { generateSpeech, validateTTSConfig, getVoiceOptions, getVoiceOptionsWithDescriptions } from './utils/geminiTTS.js';
+import {
+  getAliyunVoiceOptions,
+  callAliyunTTSOnce,
+  LANGUAGE_CODE_TO_FULL_NAME,
+  getLanguageFullName,
+  validateAliyunTTSConfig
+} from './utils/aliyunTTS.js';
 
 // ES模块中获取__dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -328,10 +335,18 @@ app.delete('/api/delete-audio', async (req, res) => {
 // 获取支持的语言列表
 app.get('/api/supported-languages', (req, res) => {
   try {
-    const languages = getSupportedLanguages();
+    const model = (req.query.model || 'google').toLowerCase();
+    let languages;
+    if (model === 'aliyun' || model === 'ali') {
+      // 返回 { code, name } 列表，前端会直接使用 code/name
+      languages = Object.entries(LANGUAGE_CODE_TO_FULL_NAME).map(([code, name]) => ({ code, name }));
+    } else {
+      // Gemini 返回的是代码数组，统一转换为对象数组
+      languages = getSupportedLanguages().map(code => ({ code, name: code }));
+    }
     res.json({
       success: true,
-      languages: languages
+      languages
     });
   } catch (error) {
     console.error('获取支持语言失败:', error);
@@ -346,11 +361,20 @@ app.get('/api/supported-languages', (req, res) => {
 // 获取支持的语音选项列表
 app.get('/api/voice-options', (req, res) => {
   try {
-    const voicesWithDescriptions = getVoiceOptionsWithDescriptions();
-    res.json({
-      success: true,
-      voices: voicesWithDescriptions
-    });
+    const model = (req.query.model || 'google').toLowerCase();
+    if (model === 'aliyun' || model === 'ali') {
+      const aliyunVoices = getAliyunVoiceOptions();
+      res.json({
+        success: true,
+        voices: aliyunVoices
+      });
+    } else {
+      const voicesWithDescriptions = getVoiceOptionsWithDescriptions();
+      res.json({
+        success: true,
+        voices: voicesWithDescriptions
+      });
+    }
   } catch (error) {
     console.error('获取语音选项失败:', error);
     res.status(500).json({
@@ -365,45 +389,57 @@ app.get('/api/voice-options', (req, res) => {
 app.get('/api/voice-sample/:voiceName', (req, res) => {
   try {
     const { voiceName } = req.params;
-    
-    // 验证语音名称
-    const voiceOptions = getVoiceOptions();
-    if (!voiceOptions.includes(voiceName)) {
-      return res.status(400).json({
-        success: false,
-        error: '无效的语音名称'
-      });
-    }
-    
-    // 构建试听文件路径
-    const sampleFileName = `voice_sample_${voiceName}.wav`;
-    const sampleFilePath = path.join(__dirname, 'soundcheck', sampleFileName);
-    
-    // 检查文件是否存在
-    if (!fs.existsSync(sampleFilePath)) {
-      return res.status(404).json({
-        success: false,
-        error: '语音样本文件不存在'
-      });
-    }
-    
-    // 设置响应头
-    res.setHeader('Content-Type', 'audio/wav');
-    res.setHeader('Content-Disposition', `inline; filename="${sampleFileName}"`);
-    res.setHeader('Cache-Control', 'public, max-age=3600'); // 缓存1小时
-    
-    // 发送文件
-    res.sendFile(sampleFilePath, (err) => {
-      if (err) {
-        console.error('发送语音样本文件失败:', err);
-        if (!res.headersSent) {
-          res.status(500).json({
-            success: false,
-            error: '发送语音样本文件失败'
-          });
-        }
+    const model = (req.query.model || 'google').toLowerCase();
+
+    if (model === 'aliyun' || model === 'ali') {
+      // Aliyun 的语音选项中包含 auditionAudio 字段，直接重定向到该 URL
+      const aliyunVoices = getAliyunVoiceOptions();
+      const found = aliyunVoices.find(v => v.name === voiceName || v.voice === voiceName);
+      if (!found || !found.auditionAudio) {
+        return res.status(404).json({ success: false, error: '未找到阿里云语音样本' });
       }
-    });
+      return res.redirect(found.auditionAudio);
+    } else {
+      // Gemini 本地或服务端存储的试听文件
+      // 验证语音名称
+      const voiceOptions = getVoiceOptions();
+      if (!voiceOptions.includes(voiceName)) {
+        return res.status(400).json({
+          success: false,
+          error: '无效的语音名称'
+        });
+      }
+      
+      // 构建试听文件路径
+      const sampleFileName = `voice_sample_${voiceName}.wav`;
+      const sampleFilePath = path.join(__dirname, 'soundcheck', sampleFileName);
+      
+      // 检查文件是否存在
+      if (!fs.existsSync(sampleFilePath)) {
+        return res.status(404).json({
+          success: false,
+          error: '语音样本文件不存在'
+        });
+      }
+      
+      // 设置响应头
+      res.setHeader('Content-Type', 'audio/wav');
+      res.setHeader('Content-Disposition', `inline; filename="${sampleFileName}"`);
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // 缓存1小时
+      
+      // 发送文件
+      res.sendFile(sampleFilePath, (err) => {
+        if (err) {
+          console.error('发送语音样本文件失败:', err);
+          if (!res.headersSent) {
+            res.status(500).json({
+              success: false,
+              error: '发送语音样本文件失败'
+            });
+          }
+        }
+      });
+    }
     
   } catch (error) {
     console.error('语音试听API错误:', error);
@@ -418,7 +454,7 @@ app.get('/api/voice-sample/:voiceName', (req, res) => {
 // 语音生成端点
 app.post('/api/generate-speech', async (req, res) => {
   try {
-    const { text, targetLanguage, voiceName, transcriptionId, paragraphInterval, skipTranslate } = req.body;
+    const { text, targetLanguage, voiceName, transcriptionId, paragraphInterval, skipTranslate, model } = req.body;
     
     // 验证必需参数
     if (!text || !text.trim()) {
@@ -478,16 +514,30 @@ app.post('/api/generate-speech', async (req, res) => {
     const audioFileName = `${baseFileName}.wav`;
     const audioPath = path.join(outputDir, audioFileName);
     
-    // 3. 生成语音（支持段落间隔）
+    // 3. 生成语音（根据 model 选择不同实现）
     try {
-      await generateSpeech(translatedText, voiceName, audioPath, intervalSeconds);
-      console.log(`语音生成完成: ${audioPath}`);
+      const usedModel = (model || 'google').toLowerCase();
+      if (usedModel === 'aliyun' || usedModel === 'ali') {
+        const languageType = getLanguageFullName(targetLanguage || '');
+        if (!languageType) {
+          return res.status(400).json({
+            success: false,
+            error: `阿里云不支持目标语言: ${targetLanguage}`
+          });
+        }
+        const audioBuffer = await callAliyunTTSOnce(translatedText, voiceName, languageType);
+        await fs.writeFile(audioPath, audioBuffer);
+        console.log(`阿里云TTS语音生成完成: ${audioPath}`);
+      } else {
+        await generateSpeech(translatedText, voiceName, audioPath, intervalSeconds);
+        console.log(`谷歌TTS语音生成完成: ${audioPath}`);
+      }
     } catch (speechError) {
       console.error('语音生成失败:', speechError);
       return res.status(500).json({
         success: false,
         error: '语音生成失败',
-        details: speechError
+        details: speechError && speechError.message ? speechError.message : speechError
       });
     }
     
