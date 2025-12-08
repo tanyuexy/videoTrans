@@ -70,6 +70,7 @@ const app = createApp({
     // 语音试听
     const isPlayingVoiceSample = ref(false);
     const voiceSampleAudio = ref(null);
+    const voiceSampleLoading = ref(false);
 
     // 选择相关
     const selectAll = ref(false);
@@ -1246,29 +1247,31 @@ const app = createApp({
         return;
       }
 
+      // 如果正在播放，先停止当前播放（但继续执行播放新的试音）
       if (isPlayingVoiceSample.value) {
-        // 如果正在播放，则停止
         stopVoiceSample();
-        return;
       }
 
-      isPlayingVoiceSample.value = true;
+      // 设置加载指示（短时显示），实际播放期间不保持 loading，这样按钮在播放时仍可点击
+      voiceSampleLoading.value = true;
 
       try {
-        // 停止当前播放的音频
+        // 停止并清理当前播放的音频（冗余保护）
         if (voiceSampleAudio.value) {
-          voiceSampleAudio.value.pause();
+          try {
+            voiceSampleAudio.value.pause();
+          } catch (e) {}
           voiceSampleAudio.value = null;
         }
 
-        // 创建音频元素
+        // 创建音频元素并设置源
         const audio = new Audio();
         audio.src = `/api/voice-sample/${encodeURIComponent(
           speechSettings.voiceName
         )}?model=${encodeURIComponent(speechSettings.model)}`;
         audio.volume = 0.7;
 
-        // 设置事件监听器
+        // 事件监听器
         audio.onloadeddata = () => {
           console.log("语音样本加载完成");
         };
@@ -1292,14 +1295,19 @@ const app = createApp({
 
         voiceSampleAudio.value = audio;
 
-        // 开始播放
+        // 尝试播放
         await audio.play();
+        // 标记播放中状态，但不作为按钮 loading 的绑定，以允许再次点击覆盖
+        isPlayingVoiceSample.value = true;
         ElMessage.success(`正在播放 ${speechSettings.voiceName} 语音样本`);
       } catch (error) {
         console.error("播放语音样本失败:", error);
         ElMessage.error("播放语音样本失败，请稍后重试");
         isPlayingVoiceSample.value = false;
         voiceSampleAudio.value = null;
+      } finally {
+        // 取消短时加载指示
+        voiceSampleLoading.value = false;
       }
     };
 
@@ -1338,6 +1346,7 @@ const app = createApp({
       availableVoices,
       isPlayingVoiceSample,
       voiceSampleAudio,
+      voiceSampleLoading,
       selectAll,
       selectAllTranscriptions,
       selectAllAudio,

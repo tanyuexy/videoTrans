@@ -11,7 +11,7 @@ const genAI = new GoogleGenAI({ apiKey: apiKey });
 // 支持的语言配置
 const SUPPORTED_LANGUAGES = [
   'US', 'AR', 'DE', 'ES', 'FR', 'ID', 'IT', 'JP', 'KR', 
-  'NL', 'PL', 'TH', 'TR', 'TW', 'VN', 'RU', 'PT', 'SV', 'FI', 'MS', 'IN',"HI"
+  'NL', 'PL', 'TH', 'TR', 'TW', 'VN', 'RU', 'PT', 'SV', 'FI', 'MS', 'IN',"HI","BN"
 ];
 
 /**
