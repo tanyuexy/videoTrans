@@ -56,7 +56,8 @@ const app = createApp({
       voiceName: "",
       enableParagraphInterval: false,
       paragraphInterval: 0.3, // 默认0.3秒间隔
-      model: "google" // per-dialog 模型选择，'google' 或 'aliyun'
+      model: "google", // per-dialog 模型选择，'google' 或 'aliyun'
+      useContentFileName: false
     });
     const availableVoices = ref([]);
 
@@ -440,7 +441,12 @@ const app = createApp({
             }
 
             const result = await response.json();
-            addTranslation(result.translatedText, lang, transcription.source);
+            addTranslation(
+              result.translatedText,
+              lang,
+              transcription.source,
+              transcription.id
+            );
             completed++;
           }
         }
@@ -456,12 +462,13 @@ const app = createApp({
       }
     };
 
-    const addTranslation = (text, language, source) => {
+    const addTranslation = (text, language, source, transcriptionId) => {
       translations.value.push({
         id: generateId(),
         text: text,
         language: language,
         source: source + ` (${getLanguageName(language)})`,
+        fromTranscriptionId: transcriptionId || null,
         selected: false
       });
     };
@@ -605,7 +612,8 @@ const app = createApp({
       ElMessage.success(`开始下载 ${selected.length} 个音频文件`);
 
       selected.forEach((audio) => {
-        downloadAudio(audio.fileName);
+        const downloadName = audio.displayName || audio.fileName;
+        downloadAudio(audio.fileName, downloadName);
       });
     };
 
@@ -675,6 +683,26 @@ const app = createApp({
         }
 
         for (const translation of pendingTranslations.value) {
+          let namingText = "";
+          if (
+            speechSettings.useContentFileName &&
+            translation.fromTranscriptionId
+          ) {
+            const origin = transcriptions.value.find(
+              (t) => t.id === translation.fromTranscriptionId
+            );
+            if (origin && origin.text) {
+              namingText = origin.text;
+            }
+          }
+          if (
+            !namingText &&
+            speechSettings.useContentFileName &&
+            translation.text
+          ) {
+            namingText = translation.text;
+          }
+
           const response = await fetch("/api/generate-speech", {
             method: "POST",
             headers: {
@@ -689,7 +717,9 @@ const app = createApp({
               paragraphInterval: speechSettings.enableParagraphInterval
                 ? speechSettings.paragraphInterval
                 : 0,
-              skipTranslate: true
+              skipTranslate: true,
+              useContentFileName: speechSettings.useContentFileName,
+              namingText
             })
           });
           if (!response.ok) {
@@ -697,10 +727,35 @@ const app = createApp({
           }
 
           const result = await response.json();
+
+          let displayName = result.audioFileName;
+          if (speechSettings.useContentFileName) {
+            if (result.displayFileName && result.displayFileName.trim) {
+              displayName = result.displayFileName;
+            } else if (namingText) {
+              let rawName = namingText.replace(/\s+/g, " ").trim();
+              if (rawName.length > 50) {
+                rawName = rawName.slice(0, 50);
+              }
+              rawName = rawName.replace(/[\\\/:*?"<>|]/g, "");
+              if (rawName) {
+                const dotIndex = result.audioFileName.lastIndexOf(".");
+                const baseName =
+                  dotIndex > 0
+                    ? result.audioFileName.slice(0, dotIndex)
+                    : result.audioFileName;
+                const ext =
+                  dotIndex > 0 ? result.audioFileName.slice(dotIndex) : ".wav";
+                displayName = `${baseName}_${rawName}${ext}`;
+              }
+            }
+          }
+
           addAudio(
             result.audioFileName,
             translation.source,
-            translation.language
+            translation.language,
+            displayName
           );
         }
 
@@ -718,12 +773,13 @@ const app = createApp({
     };
 
     // 音频管理方法
-    const addAudio = (fileName, source, language) => {
+    const addAudio = (fileName, source, language, displayName) => {
       audioList.value.push({
         id: generateId(),
         fileName: fileName,
         source: source,
         language: language,
+        displayName: displayName || fileName,
         selected: false
       });
     };
@@ -820,7 +876,7 @@ const app = createApp({
       return formatTime(seconds);
     };
 
-    const downloadAudio = async (fileName) => {
+    const downloadAudio = async (fileName, downloadName) => {
       try {
         // 使用fetch API下载文件，适合HTTPS环境
         const response = await fetch(
@@ -847,7 +903,7 @@ const app = createApp({
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = fileName;
+        link.download = downloadName || fileName;
         link.style.display = "none";
 
         // 添加到DOM并触发下载
@@ -867,7 +923,7 @@ const app = createApp({
         try {
           const link = document.createElement("a");
           link.href = `/api/download-audio/${encodeURIComponent(fileName)}`;
-          link.download = fileName;
+          link.download = downloadName || fileName;
           link.target = "_blank";
           document.body.appendChild(link);
           link.click();
@@ -1044,7 +1100,7 @@ const app = createApp({
       try {
         // 强制使用 google，确保新增翻译时语言选项始终为谷歌列表
         const response = await fetch(
-          `/api/supported-languages?model=${encodeURIComponent('google')}`
+          `/api/supported-languages?model=${encodeURIComponent("google")}`
         );
         if (response.ok) {
           const result = await response.json();
@@ -1054,7 +1110,10 @@ const app = createApp({
               code: l.code,
               name: l.name
             }));
-            console.log("翻译语言配置（Google）获取成功:", availableLanguages.value);
+            console.log(
+              "翻译语言配置（Google）获取成功:",
+              availableLanguages.value
+            );
           } else {
             console.error("获取语言配置失败:", result.error);
             ElMessage.error("获取语言配置失败");
@@ -1082,9 +1141,15 @@ const app = createApp({
         await voicesLoadedPromise;
       }
       // 优先使用缓存
-      if (availableTTSLanguagesCache[key] && availableTTSLanguagesCache[key].length > 0) {
+      if (
+        availableTTSLanguagesCache[key] &&
+        availableTTSLanguagesCache[key].length > 0
+      ) {
         availableTTSLanguages.value = availableTTSLanguagesCache[key];
-        console.log(`模型语言配置（来自缓存 ${key}）:`, availableTTSLanguages.value);
+        console.log(
+          `模型语言配置（来自缓存 ${key}）:`,
+          availableTTSLanguages.value
+        );
         return;
       }
 
@@ -1096,7 +1161,10 @@ const app = createApp({
         if (response.ok) {
           const result = await response.json();
           if (result.success) {
-            const mapped = (result.languages || []).map((l) => ({ code: l.code, name: l.name }));
+            const mapped = (result.languages || []).map((l) => ({
+              code: l.code,
+              name: l.name
+            }));
             availableTTSLanguagesCache[key] = mapped;
             availableTTSLanguages.value = mapped;
             console.log("模型语言配置获取成功:", availableTTSLanguages.value);
@@ -1129,7 +1197,9 @@ const app = createApp({
           description: v.description || "",
           displayName:
             v.displayName ||
-            `${v.name || v.voice || v.id}${v.description ? " - " + v.description : ""}`,
+            `${v.name || v.voice || v.id}${
+              v.description ? " - " + v.description : ""
+            }`,
           auditionAudio: v.auditionAudio || v.sampleUrl || null,
           voice: v.voice
         };
@@ -1183,14 +1253,20 @@ const app = createApp({
         // 并行拉取对应模型的语言列表（用于 TTS/校验），写入缓存
         try {
           const [langGoogleResp, langAliyunResp] = await Promise.all([
-            fetch(`/api/supported-languages?model=${encodeURIComponent("google")}`),
-            fetch(`/api/supported-languages?model=${encodeURIComponent("aliyun")}`)
+            fetch(
+              `/api/supported-languages?model=${encodeURIComponent("google")}`
+            ),
+            fetch(
+              `/api/supported-languages?model=${encodeURIComponent("aliyun")}`
+            )
           ]);
 
           if (langGoogleResp.ok) {
             const r = await langGoogleResp.json();
             if (r.success) {
-              availableTTSLanguagesCache.google = (r.languages || []).map((l) => ({ code: l.code, name: l.name }));
+              availableTTSLanguagesCache.google = (r.languages || []).map(
+                (l) => ({ code: l.code, name: l.name })
+              );
             } else {
               console.error("获取 Google 语言列表失败:", r.error);
             }
@@ -1201,7 +1277,9 @@ const app = createApp({
           if (langAliyunResp.ok) {
             const r = await langAliyunResp.json();
             if (r.success) {
-              availableTTSLanguagesCache.aliyun = (r.languages || []).map((l) => ({ code: l.code, name: l.name }));
+              availableTTSLanguagesCache.aliyun = (r.languages || []).map(
+                (l) => ({ code: l.code, name: l.name })
+              );
             } else {
               console.error("获取 Aliyun 语言列表失败:", r.error);
             }
@@ -1213,9 +1291,11 @@ const app = createApp({
         }
 
         // 根据当前模型初始化显示列表与模型语言
-        const initialKey = speechSettings.model === "aliyun" ? "aliyun" : "google";
+        const initialKey =
+          speechSettings.model === "aliyun" ? "aliyun" : "google";
         availableVoices.value = availableVoicesCache[initialKey] || [];
-        availableTTSLanguages.value = availableTTSLanguagesCache[initialKey] || [];
+        availableTTSLanguages.value =
+          availableTTSLanguagesCache[initialKey] || [];
         if (availableVoices.value.length > 0 && !speechSettings.voiceName) {
           speechSettings.voiceName = availableVoices.value[0].name;
         }

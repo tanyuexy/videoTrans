@@ -1,478 +1,720 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="./icon.png">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="./icon.png" />
     <title>视频人声转文本工具</title>
     <!-- Element Plus CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/element-plus/dist/index.css"
+    />
     <!-- Vue.js 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- Element Plus JS -->
     <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
     <!-- Element Plus 图标 -->
-    <link rel="stylesheet" href="https://unpkg.com/@element-plus/icons-vue/dist/index.css">
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@element-plus/icons-vue/dist/index.css"
+    />
     <script src="https://unpkg.com/@element-plus/icons-vue/dist/index.iife.js"></script>
     <!-- Element Plus 中文语言包 -->
     <script src="https://unpkg.com/element-plus/dist/locale/zh-cn.js"></script>
     <!-- Axios -->
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <link rel="stylesheet" href="index.css">
-</head>
-<body>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
     <div id="app">
-        <el-container class="main-container">
-            <!-- 标题栏 -->
-            <el-header class="header-bar">
-                <h1 class="main-title">
-                    <el-icon><VideoPlay /></el-icon>
-                    视频人声转文本工具
-                </h1>
-                <div class="header-actions">
-                    <el-button type="danger" plain @click="clearAllData" size="small">
-                        <el-icon><Delete /></el-icon>
-                        清空所有数据
-                    </el-button>
-                </div>
-            </el-header>
+      <el-container class="main-container">
+        <!-- 标题栏 -->
+        <el-header class="header-bar">
+          <h1 class="main-title">
+            <el-icon><VideoPlay /></el-icon>
+            视频人声转文本工具
+          </h1>
+          <div class="header-actions">
+            <el-button type="danger" plain @click="clearAllData" size="small">
+              <el-icon><Delete /></el-icon>
+              清空所有数据
+            </el-button>
+          </div>
+        </el-header>
 
-            <!-- 主要内容区域 -->
-            <el-main class="main-content">
-                <el-row :gutter="16" class="full-height">
-                    <!-- 第一栏：视频上传 -->
-                    <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
-                        <el-card class="column-card" shadow="hover">
-                            <template #header>
-                                <div class="card-header">
-                                    <span>视频/音频上传</span>
-                                </div>
-                            </template>
+        <!-- 主要内容区域 -->
+        <el-main class="main-content">
+          <el-row :gutter="16" class="full-height">
+            <!-- 第一栏：视频上传 -->
+            <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
+              <el-card class="column-card" shadow="hover">
+                <template #header>
+                  <div class="card-header">
+                    <span>视频/音频上传</span>
+                  </div>
+                </template>
 
-                            <!-- 上传区域 -->
-                            <el-upload
-                                ref="videoUploader"
-                                class="upload-demo"
-                                drag
-                                action="#"
-                                :multiple="true"
-                                :auto-upload="false"
-                                :on-change="handleVideoFileChange"
-                                :before-upload="beforeVideoUpload"
-                                accept="video/*,audio/*"
-                                :file-list="selectedVideos">
-                                <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
-                                <div class="el-upload__text">
-                                    将视频/音频文件拖拽到此处，或<em>点击上传</em>
-                                </div>
-                                <template #tip>
-                                    <div class="el-upload__tip">
-                                        支持视频/音频：MP4, AVI, MOV, WMV, MKV, WEBM, MP3, M4A, AAC, OGG, FLAC, WAV；单个文件最大1Gb
-                                    </div>
-                                </template>
-                            </el-upload>
-
-                            <!-- 已选择文件列表 -->
-                            <div v-if="selectedVideos.length > 0" class="file-list-section">
-                                <el-divider content-position="left">
-                                    已选择文件 ({{ selectedVideos.length }})
-                                </el-divider>
-                                
-                                <div class="file-list">
-                                    <div v-for="(file, index) in selectedVideos" :key="file.uid" class="file-item">
-                                        <el-icon><VideoCamera /></el-icon>
-                                        <div class="file-info">
-                                            <div class="file-name">{{ file.name }}</div>
-                                            <div class="file-size">{{ formatFileSize(file.size) }}</div>
-                                        </div>
-                                        <el-button type="danger" size="small" text @click="removeVideoFile(index)">
-                                            <el-icon><Close /></el-icon>
-                                        </el-button>
-                                    </div>
-                                </div>
-
-                                <el-button type="primary" :loading="isProcessing" @click="processVideos" class="process-btn" :disabled="selectedVideos.length === 0">
-                                    <el-icon><Play /></el-icon>
-                                    开始转录
-                                </el-button>
-                            </div>
-
-                            <!-- 处理进度 -->
-                            <div v-if="isProcessing" class="progress-section">
-                                <el-divider content-position="left">处理进度</el-divider>
-                                <div class="progress-info">
-                                    <div class="progress-text">{{ progressText }}</div>
-                                    <el-progress :percentage="progressPercentage" :status="progressPercentage === 100 ? 'success' : null"></el-progress>
-                                </div>
-                            </div>
-                        </el-card>
-                    </el-col>
-
-                    <!-- 第二栏：原始文案 -->
-                    <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
-                        <el-card class="column-card" shadow="hover">
-                            <template #header>
-                                <div class="card-header">
-                                    <span>原始文案</span>
-                                    <div class="header-actions">
-                                        <el-button type="danger" size="small" @click="deleteSelectedTranscriptions" :disabled="selectedTranscriptions.length === 0">
-                                            <el-icon><Delete /></el-icon>
-                                            删除选中
-                                        </el-button>
-                                        <el-button type="success" size="small" @click="showTranslateDialog" :disabled="transcriptions.length === 0">
-                                            <el-icon><Sort /></el-icon>
-                                            翻译
-                                        </el-button>
-                                        <el-button type="primary" size="small" @click="addManualText">
-                                            <el-icon><Plus /></el-icon>
-                                            新增
-                                        </el-button>
-                                        <el-checkbox v-model="selectAllTranscriptions" style="color: #ffffff;" @change="handleSelectAllTranscriptions" size="small">全选</el-checkbox>
-                                    </div>
-                                </div>
-                            </template>
-
-                            <div class="content-list">
-                                <el-empty v-if="transcriptions.length === 0" description="暂无文案内容">
-                                    <template #image>
-                                        <el-icon style="font-size: 60px; color: #909399;"><Document /></el-icon>
-                                    </template>
-                                </el-empty>
-
-                                <div v-else class="transcription-list">
-                                    <div v-for="(item, index) in transcriptions" :key="item.id" class="content-item">
-                                        <div class="content-header">
-                                            <div class="content-title">
-                                                <el-checkbox v-model="item.selected" @change="updateSelectAllTranscriptions" size="small"></el-checkbox>
-                                                <el-tag size="small" type="info">文案 {{ index + 1 }}</el-tag>
-                                                <span class="source-text">{{ item.source }}</span>
-                                            </div>
-                                            <el-button-group size="small">
-                                                <el-button @click="copyText(item.text)" size="small">
-                                                    复制
-                                                </el-button>
-                                                <el-button @click="copyText(item.originalText)" size="small">
-                                                    复制原文
-                                                </el-button>
-                                                <el-button @click="downloadText(item.text, item.source)" size="small">
-                                                    下载
-                                                </el-button>
-                                                <el-button type="danger" @click="removeTranscription(index)" size="small">
-                                                    <el-icon><Delete /></el-icon>
-                                                </el-button>
-                                            </el-button-group>
-                                        </div>
-                                        <el-input
-                                            v-model="item.text"
-                                            type="textarea"
-                                            :autosize="{ minRows: 2, maxRows: 6 }"
-                                            placeholder="编辑文案内容..."
-                                            class="content-textarea"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </el-card>
-                    </el-col>
-
-                    <!-- 第三栏：翻译结果 -->
-                    <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
-                        <el-card class="column-card" shadow="hover">
-                            <template #header>
-                                <div class="card-header">
-                                    <span>翻译结果</span>
-                                    <div class="header-actions">
-                                        <el-button type="danger" size="small" @click="deleteSelectedTranslations" :disabled="selectedTranslations.length === 0">
-                                            <el-icon><Delete /></el-icon>
-                                            删除选中
-                                        </el-button>
-                                        <el-button type="primary" size="small" @click="addManualTranslation">
-                                            <el-icon><Plus /></el-icon>
-                                            新增
-                                        </el-button>
-                                        <el-button type="success" size="small" @click="downloadSelectedTranslationsAsTxt" :disabled="selectedTranslations.length === 0">
-                                            <el-icon><Download /></el-icon>
-                                            下载TXT
-                                        </el-button>
-                                        <el-button type="primary" size="small" @click="generateSelectedSpeech" :disabled="selectedTranslations.length === 0">
-                                            <el-icon><Microphone /></el-icon>
-                                            生成语音
-                                        </el-button>
-                                        <el-checkbox v-model="selectAll" style="color: #ffffff;" @change="handleSelectAll" size="small">全选</el-checkbox>
-                                    </div>
-                                </div>
-                            </template>
-
-                            <div class="content-list">
-                                <el-empty v-if="translations.length === 0" description="暂无翻译内容">
-                                    <template #image>
-                                        <el-icon style="font-size: 60px; color: #909399;"><ChatDotSquare /></el-icon>
-                                    </template>
-                                </el-empty>
-
-                                <div v-else class="translation-list">
-                                    <div v-for="(item, index) in translations" :key="item.id" class="content-item">
-                                        <div class="content-header">
-                                            <div class="content-title">
-                                                <el-checkbox v-model="item.selected" @change="updateSelectAll" size="small"></el-checkbox>
-                                                <el-tag size="small" :type="getLanguageTagType(item.language)">{{ getLanguageName(item.language) }}</el-tag>
-                                                <span class="source-text">{{ item.source }}</span>
-                                            </div>
-                                            <el-button-group size="small">
-                                                <el-button @click="copyText(item.text)" size="small">
-                                                    复制
-                                                </el-button>
-                                                <el-button @click="downloadText(item.text, item.source + '_' + item.language)" size="small">
-                                                    下载
-                                                </el-button>
-                                                <el-button type="success" @click="generateSingleSpeech(item)" size="small">
-                                                    <el-icon><Microphone /></el-icon>
-                                                </el-button>
-                                                <el-button type="danger" @click="removeTranslation(index)" size="small">
-                                                    <el-icon><Delete /></el-icon>
-                                                </el-button>
-                                            </el-button-group>
-                                        </div>
-                                        <el-input
-                                            v-model="item.text"
-                                            type="textarea"
-                                            :autosize="{ minRows: 2, maxRows: 6 }"
-                                            placeholder="编辑翻译内容..."
-                                            class="content-textarea"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </el-card>
-                    </el-col>
-
-                    <!-- 第四栏：音频列表 -->
-                    <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
-                        <el-card class="column-card" shadow="hover">
-                            <template #header>
-                                <div class="card-header">
-                                    <div class="header-title">
-                                        <span>音频列表</span>
-                                    </div>
-                                    <div class="header-actions">
-                                        <el-button type="danger" size="small" @click="deleteSelectedAudios" :disabled="selectedAudios.length === 0">
-                                            <el-icon><Delete /></el-icon>
-                                            删除选中
-                                        </el-button>
-                                        <el-button type="primary" size="small" @click="downloadSelectedAudios" :disabled="selectedAudios.length === 0">
-                                            <el-icon><Download /></el-icon>
-                                            批量下载
-                                        </el-button>
-                                        <el-checkbox v-model="selectAllAudio" style="color: #ffffff;" @change="handleSelectAllAudio" size="small">全选</el-checkbox>
-                                    </div>
-                                </div>
-                            </template>
-
-                            <div class="content-list">
-                                <el-empty v-if="audioList.length === 0" description="暂无音频文件">
-                                    <template #image>
-                                        <el-icon style="font-size: 60px; color: #909399;"><Headphone /></el-icon>
-                                    </template>
-                                </el-empty>
-
-                                <div v-else class="audio-list">
-                                    <div v-for="(audio, index) in audioList" :key="audio.id" class="compact-audio-item">
-                                        <div class="audio-main-info">
-                                            <div class="audio-meta-row">
-                                                <el-checkbox v-model="audio.selected" @change="updateSelectAllAudio" size="small"></el-checkbox>
-                                                <el-tag size="mini" :type="getLanguageTagType(audio.language)" class="language-tag">
-                                                    {{ getLanguageName(audio.language) }}
-                                                </el-tag>
-                                                <span class="audio-source-tag">{{ audio.source }}</span>
-                                            </div>
-                                            <div class="audio-name-row">
-                                                <span class="audio-name" :title="audio.fileName">{{ audio.fileName }}</span>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="audio-controls">
-                                            <el-button 
-                                                :type="currentPlayingAudio === audio.fileName ? 'primary' : 'default'" 
-                                                size="mini" 
-                                                @click="toggleAudioPlayback(audio.fileName, index)"
-                                                circle
-                                                class="download-btn"
-                                            >
-                                                <span v-if="currentPlayingAudio !== audio.fileName" style="font-size: 12px;">播放</span>
-                                                <span v-else>暂停</span>
-                                            </el-button>
-                                            <el-button @click="downloadAudio(audio.fileName)" size="mini" circle class="download-btn">
-                                                <el-icon><Download /></el-icon>
-                                            </el-button>
-                                            <el-button type="danger" @click="removeAudio(index)" size="mini" circle class="delete-btn">
-                                                <el-icon><Delete /></el-icon>
-                                            </el-button>
-                                        </div>
-                                        
-                                        <!-- 简化的音频播放进度条 -->
-                                        <div class="audio-progress" v-if="currentPlayingAudio === audio.fileName">
-                                            <div class="progress-bar" @click="seekAudio">
-                                                <div class="progress-fill" :style="{ width: audioProgress + '%' }"></div>
-                                            </div>
-                                            <div class="time-display">
-                                                <span class="time-text">{{ formatTime(currentTime) }} / {{ formatTime(audioDuration) }}</span>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- 隐藏的音频元素 -->
-                                        <audio 
-                                            v-if="currentPlayingAudio === audio.fileName"
-                                            :ref="el => { if (el) audioRefs['audioPlayer' + index] = el }"
-                                            :src="`/api/download-audio/${encodeURIComponent(audio.fileName)}`" 
-                                            @loadedmetadata="onAudioLoaded"
-                                            @timeupdate="onTimeUpdate"
-                                            @ended="onAudioEnded"
-                                            preload="metadata"
-                                            style="display: none;"
-                                        ></audio>
-                                    </div>
-                                </div>
-                            </div>
-                        </el-card>
-                    </el-col>
-                </el-row>
-            </el-main>
-        </el-container>
-
-        <!-- 翻译语言选择弹窗 -->
-        <el-dialog v-model="translateDialogVisible" title="选择翻译目标语言" width="50%" :before-close="handleTranslateDialogClose">
-            <div class="language-selection-container">
-                <el-select
-                    v-model="selectedLanguages"
-                    multiple
-                    filterable
-                    placeholder="请选择目标语言"
-                    style="width: 100%"
+                <!-- 上传区域 -->
+                <el-upload
+                  ref="videoUploader"
+                  class="upload-demo"
+                  drag
+                  action="#"
+                  :multiple="true"
+                  :auto-upload="false"
+                  :on-change="handleVideoFileChange"
+                  :before-upload="beforeVideoUpload"
+                  accept="video/*,audio/*"
+                  :file-list="selectedVideos"
                 >
-                    <el-option
-                        v-for="lang in availableLanguages"
-                        :key="lang.code"
-                        :label="lang.name"
-                        :value="lang.code"
+                  <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+                  <div class="el-upload__text">
+                    将视频/音频文件拖拽到此处，或<em>点击上传</em>
+                  </div>
+                  <template #tip>
+                    <div class="el-upload__tip">
+                      支持视频/音频：MP4, AVI, MOV, WMV, MKV, WEBM, MP3, M4A,
+                      AAC, OGG, FLAC, WAV；单个文件最大1Gb
+                    </div>
+                  </template>
+                </el-upload>
+
+                <!-- 已选择文件列表 -->
+                <div v-if="selectedVideos.length > 0" class="file-list-section">
+                  <el-divider content-position="left">
+                    已选择文件 ({{ selectedVideos.length }})
+                  </el-divider>
+
+                  <div class="file-list">
+                    <div
+                      v-for="(file, index) in selectedVideos"
+                      :key="file.uid"
+                      class="file-item"
                     >
-                        <span>{{ lang.name }}</span>
-                    </el-option>
-                </el-select>
-            </div>
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="translateDialogVisible = false">取消</el-button>
-                    <el-button type="primary" @click="executeTranslation" :loading="isTranslating" :disabled="selectedLanguages.length === 0">
-                        开始翻译
-                    </el-button>
-                </span>
-            </template>
-        </el-dialog>
-
-        <!-- 音频播放弹窗 -->
-        <el-dialog v-model="audioPlayerDialogVisible" :title="`播放音频: ${currentAudioTitle}`" width="50%">
-            <audio controls class="dialog-audio-control" ref="dialogAudioPlayer">
-                <source :src="currentAudioUrl" type="audio/wav">
-                您的浏览器不支持音频播放。
-            </audio>
-        </el-dialog>
-
-        <!-- 语音生成设置弹窗 -->
-        <el-dialog v-model="speechDialogVisible" title="语音生成设置" width="50%">
-            <el-form :model="speechSettings" label-width="120px">
-                <el-form-item label="模型">
-                    <el-select v-model="speechSettings.model" placeholder="选择模型" style="width: 220px;">
-                        <el-option label="谷歌" value="google"></el-option>
-                        <el-option label="阿里云" value="aliyun"></el-option>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="开启段落间隔" v-if="speechSettings.model === 'google'">
-                    <el-switch v-model="speechSettings.enableParagraphInterval" />
-                </el-form-item>
-                <el-form-item label="语音类型">
-                    <div class="voice-selection-container">
-                        <el-select v-model="speechSettings.voiceName" placeholder="请选择语音类型" filterable class="voice-select">
-                            <el-option 
-                                v-for="voice in availableVoices" 
-                                :key="voice.name" 
-                                :label="voice.displayName" 
-                                :value="voice.name"
-                            ></el-option>
-                        </el-select>
-                        <el-button 
-                            type="primary" 
-                            :loading="voiceSampleLoading" 
-                            @click="playVoiceSample" 
-                            :disabled="!speechSettings.voiceName"
-                            class="voice-preview-btn"
-                        >
-                            <el-icon><Volume /></el-icon>
-                            试听
-                        </el-button>
-                    </div>
-                </el-form-item>
-                <el-form-item label="段落间隔" style="align-items: center;" v-if="speechSettings.model === 'google'">
-                    <div class="interval-setting-container">
-                        <el-slider
-                            v-model="speechSettings.paragraphInterval"
-                            :disabled="!speechSettings.enableParagraphInterval"
-                            :min="0"
-                            :max="3"
-                            :step="0.1"
-                            :format-tooltip="(val) => val + '秒'"
-                            show-input
-                            :show-input-controls="false"
-                            class="interval-slider"
-                        />
-                        <div class="interval-description">
-                            <el-text type="info" size="small">
-                                当开启后，文本中的换行会插入指定时长的静音间隔
-                            </el-text>
+                      <el-icon><VideoCamera /></el-icon>
+                      <div class="file-info">
+                        <div class="file-name">{{ file.name }}</div>
+                        <div class="file-size">
+                          {{ formatFileSize(file.size) }}
                         </div>
+                      </div>
+                      <el-button
+                        type="danger"
+                        size="small"
+                        text
+                        @click="removeVideoFile(index)"
+                      >
+                        <el-icon><Close /></el-icon>
+                      </el-button>
                     </div>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="speechDialogVisible = false">取消</el-button>
-                    <el-button type="primary" @click="confirmGenerateSpeech" :loading="isGeneratingSpeech">
-                        确认生成
-                    </el-button>
-                </span>
-            </template>
-        </el-dialog>
+                  </div>
 
-        <!-- 新增翻译内容弹窗 -->
-        <el-dialog v-model="manualTranslationDialogVisible" title="新增翻译" width="50%">
-            <el-form :model="manualTranslationForm" label-width="120px">
-                <el-form-item label="翻译语言（可选）">
-                    <el-select v-model="manualTranslationForm.language" placeholder="不选择则自动识别" filterable clearable style="width: 100%;">
-                        <el-option
-                            v-for="lang in availableLanguages"
-                            :key="lang.code"
-                            :label="lang.name"
-                            :value="lang.code"
-                        />
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="翻译内容">
-                    <el-input
-                        v-model="manualTranslationForm.text"
+                  <el-button
+                    type="primary"
+                    :loading="isProcessing"
+                    @click="processVideos"
+                    class="process-btn"
+                    :disabled="selectedVideos.length === 0"
+                  >
+                    <el-icon><Play /></el-icon>
+                    开始转录
+                  </el-button>
+                </div>
+
+                <!-- 处理进度 -->
+                <div v-if="isProcessing" class="progress-section">
+                  <el-divider content-position="left">处理进度</el-divider>
+                  <div class="progress-info">
+                    <div class="progress-text">{{ progressText }}</div>
+                    <el-progress
+                      :percentage="progressPercentage"
+                      :status="progressPercentage === 100 ? 'success' : null"
+                    ></el-progress>
+                  </div>
+                </div>
+              </el-card>
+            </el-col>
+
+            <!-- 第二栏：原始文案 -->
+            <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
+              <el-card class="column-card" shadow="hover">
+                <template #header>
+                  <div class="card-header">
+                    <span>原始文案</span>
+                    <div class="header-actions">
+                      <el-button
+                        type="danger"
+                        size="small"
+                        @click="deleteSelectedTranscriptions"
+                        :disabled="selectedTranscriptions.length === 0"
+                      >
+                        <el-icon><Delete /></el-icon>
+                        删除选中
+                      </el-button>
+                      <el-button
+                        type="success"
+                        size="small"
+                        @click="showTranslateDialog"
+                        :disabled="transcriptions.length === 0"
+                      >
+                        <el-icon><Sort /></el-icon>
+                        翻译
+                      </el-button>
+                      <el-button
+                        type="primary"
+                        size="small"
+                        @click="addManualText"
+                      >
+                        <el-icon><Plus /></el-icon>
+                        新增
+                      </el-button>
+                      <el-checkbox
+                        v-model="selectAllTranscriptions"
+                        style="color: #ffffff"
+                        @change="handleSelectAllTranscriptions"
+                        size="small"
+                        >全选</el-checkbox
+                      >
+                    </div>
+                  </div>
+                </template>
+
+                <div class="content-list">
+                  <el-empty
+                    v-if="transcriptions.length === 0"
+                    description="暂无文案内容"
+                  >
+                    <template #image>
+                      <el-icon style="font-size: 60px; color: #909399"
+                        ><Document
+                      /></el-icon>
+                    </template>
+                  </el-empty>
+
+                  <div v-else class="transcription-list">
+                    <div
+                      v-for="(item, index) in transcriptions"
+                      :key="item.id"
+                      class="content-item"
+                    >
+                      <div class="content-header">
+                        <div class="content-title">
+                          <el-checkbox
+                            v-model="item.selected"
+                            @change="updateSelectAllTranscriptions"
+                            size="small"
+                          ></el-checkbox>
+                          <el-tag size="small" type="info"
+                            >文案 {{ index + 1 }}</el-tag
+                          >
+                          <span class="source-text">{{ item.source }}</span>
+                        </div>
+                        <el-button-group size="small">
+                          <el-button @click="copyText(item.text)" size="small">
+                            复制
+                          </el-button>
+                          <el-button
+                            @click="copyText(item.originalText)"
+                            size="small"
+                          >
+                            复制原文
+                          </el-button>
+                          <el-button
+                            @click="downloadText(item.text, item.source)"
+                            size="small"
+                          >
+                            下载
+                          </el-button>
+                          <el-button
+                            type="danger"
+                            @click="removeTranscription(index)"
+                            size="small"
+                          >
+                            <el-icon><Delete /></el-icon>
+                          </el-button>
+                        </el-button-group>
+                      </div>
+                      <el-input
+                        v-model="item.text"
                         type="textarea"
-                        :autosize="{ minRows: 6, maxRows: 12 }"
-                        placeholder="请输入要添加的翻译内容..."
-                    />
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="manualTranslationDialogVisible = false">取消</el-button>
-                    <el-button type="primary" @click="confirmAddManualTranslation">确认添加</el-button>
-                </span>
-            </template>
-        </el-dialog>
+                        :autosize="{ minRows: 2, maxRows: 6 }"
+                        placeholder="编辑文案内容..."
+                        class="content-textarea"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </el-card>
+            </el-col>
+
+            <!-- 第三栏：翻译结果 -->
+            <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
+              <el-card class="column-card" shadow="hover">
+                <template #header>
+                  <div class="card-header">
+                    <span>翻译结果</span>
+                    <div class="header-actions">
+                      <el-button
+                        type="danger"
+                        size="small"
+                        @click="deleteSelectedTranslations"
+                        :disabled="selectedTranslations.length === 0"
+                      >
+                        <el-icon><Delete /></el-icon>
+                        删除选中
+                      </el-button>
+                      <el-button
+                        type="primary"
+                        size="small"
+                        @click="addManualTranslation"
+                      >
+                        <el-icon><Plus /></el-icon>
+                        新增
+                      </el-button>
+                      <el-button
+                        type="success"
+                        size="small"
+                        @click="downloadSelectedTranslationsAsTxt"
+                        :disabled="selectedTranslations.length === 0"
+                      >
+                        <el-icon><Download /></el-icon>
+                        下载TXT
+                      </el-button>
+                      <el-button
+                        type="primary"
+                        size="small"
+                        @click="generateSelectedSpeech"
+                        :disabled="selectedTranslations.length === 0"
+                      >
+                        <el-icon><Microphone /></el-icon>
+                        生成语音
+                      </el-button>
+                      <el-checkbox
+                        v-model="selectAll"
+                        style="color: #ffffff"
+                        @change="handleSelectAll"
+                        size="small"
+                        >全选</el-checkbox
+                      >
+                    </div>
+                  </div>
+                </template>
+
+                <div class="content-list">
+                  <el-empty
+                    v-if="translations.length === 0"
+                    description="暂无翻译内容"
+                  >
+                    <template #image>
+                      <el-icon style="font-size: 60px; color: #909399"
+                        ><ChatDotSquare
+                      /></el-icon>
+                    </template>
+                  </el-empty>
+
+                  <div v-else class="translation-list">
+                    <div
+                      v-for="(item, index) in translations"
+                      :key="item.id"
+                      class="content-item"
+                    >
+                      <div class="content-header">
+                        <div class="content-title">
+                          <el-checkbox
+                            v-model="item.selected"
+                            @change="updateSelectAll"
+                            size="small"
+                          ></el-checkbox>
+                          <el-tag
+                            size="small"
+                            :type="getLanguageTagType(item.language)"
+                            >{{ getLanguageName(item.language) }}</el-tag
+                          >
+                          <span class="source-text">{{ item.source }}</span>
+                        </div>
+                        <el-button-group size="small">
+                          <el-button @click="copyText(item.text)" size="small">
+                            复制
+                          </el-button>
+                          <el-button
+                            @click="downloadText(item.text, item.source + '_' + item.language)"
+                            size="small"
+                          >
+                            下载
+                          </el-button>
+                          <el-button
+                            type="success"
+                            @click="generateSingleSpeech(item)"
+                            size="small"
+                          >
+                            <el-icon><Microphone /></el-icon>
+                          </el-button>
+                          <el-button
+                            type="danger"
+                            @click="removeTranslation(index)"
+                            size="small"
+                          >
+                            <el-icon><Delete /></el-icon>
+                          </el-button>
+                        </el-button-group>
+                      </div>
+                      <el-input
+                        v-model="item.text"
+                        type="textarea"
+                        :autosize="{ minRows: 2, maxRows: 6 }"
+                        placeholder="编辑翻译内容..."
+                        class="content-textarea"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </el-card>
+            </el-col>
+
+            <!-- 第四栏：音频列表 -->
+            <el-col :span="6" :xl="6" :lg="6" :md="12" :sm="12" :xs="24">
+              <el-card class="column-card" shadow="hover">
+                <template #header>
+                  <div class="card-header">
+                    <div class="header-title">
+                      <span>音频列表</span>
+                    </div>
+                    <div class="header-actions">
+                      <el-button
+                        type="danger"
+                        size="small"
+                        @click="deleteSelectedAudios"
+                        :disabled="selectedAudios.length === 0"
+                      >
+                        <el-icon><Delete /></el-icon>
+                        删除选中
+                      </el-button>
+                      <el-button
+                        type="primary"
+                        size="small"
+                        @click="downloadSelectedAudios"
+                        :disabled="selectedAudios.length === 0"
+                      >
+                        <el-icon><Download /></el-icon>
+                        批量下载
+                      </el-button>
+                      <el-checkbox
+                        v-model="selectAllAudio"
+                        style="color: #ffffff"
+                        @change="handleSelectAllAudio"
+                        size="small"
+                        >全选</el-checkbox
+                      >
+                    </div>
+                  </div>
+                </template>
+
+                <div class="content-list">
+                  <el-empty
+                    v-if="audioList.length === 0"
+                    description="暂无音频文件"
+                  >
+                    <template #image>
+                      <el-icon style="font-size: 60px; color: #909399"
+                        ><Headphone
+                      /></el-icon>
+                    </template>
+                  </el-empty>
+
+                  <div v-else class="audio-list">
+                    <div
+                      v-for="(audio, index) in audioList"
+                      :key="audio.id"
+                      class="compact-audio-item"
+                    >
+                      <div class="audio-main-info">
+                        <div class="audio-meta-row">
+                          <el-checkbox
+                            v-model="audio.selected"
+                            @change="updateSelectAllAudio"
+                            size="small"
+                          ></el-checkbox>
+                          <el-tag
+                            size="mini"
+                            :type="getLanguageTagType(audio.language)"
+                            class="language-tag"
+                          >
+                            {{ getLanguageName(audio.language) }}
+                          </el-tag>
+                          <span class="audio-source-tag"
+                            >{{ audio.source }}</span
+                          >
+                        </div>
+                        <div class="audio-name-row">
+                          <span
+                            class="audio-name"
+                            :title="audio.displayName || audio.fileName"
+                            >{{ audio.displayName || audio.fileName }}</span
+                          >
+                        </div>
+                      </div>
+
+                      <div class="audio-controls">
+                        <el-button
+                          :type="currentPlayingAudio === audio.fileName ? 'primary' : 'default'"
+                          size="mini"
+                          @click="toggleAudioPlayback(audio.fileName, index)"
+                          circle
+                          class="download-btn"
+                        >
+                          <span
+                            v-if="currentPlayingAudio !== audio.fileName"
+                            style="font-size: 12px"
+                            >播放</span
+                          >
+                          <span v-else>暂停</span>
+                        </el-button>
+                        <el-button
+                          @click="downloadAudio(audio.fileName, audio.displayName || audio.fileName)"
+                          size="mini"
+                          circle
+                          class="download-btn"
+                        >
+                          <el-icon><Download /></el-icon>
+                        </el-button>
+                        <el-button
+                          type="danger"
+                          @click="removeAudio(index)"
+                          size="mini"
+                          circle
+                          class="delete-btn"
+                        >
+                          <el-icon><Delete /></el-icon>
+                        </el-button>
+                      </div>
+
+                      <!-- 简化的音频播放进度条 -->
+                      <div
+                        class="audio-progress"
+                        v-if="currentPlayingAudio === audio.fileName"
+                      >
+                        <div class="progress-bar" @click="seekAudio">
+                          <div
+                            class="progress-fill"
+                            :style="{ width: audioProgress + '%' }"
+                          ></div>
+                        </div>
+                        <div class="time-display">
+                          <span class="time-text"
+                            >{{ formatTime(currentTime) }} / {{
+                            formatTime(audioDuration) }}</span
+                          >
+                        </div>
+                      </div>
+
+                      <!-- 隐藏的音频元素 -->
+                      <audio
+                        v-if="currentPlayingAudio === audio.fileName"
+                        :ref="el => { if (el) audioRefs['audioPlayer' + index] = el }"
+                        :src="`/api/download-audio/${encodeURIComponent(audio.fileName)}`"
+                        @loadedmetadata="onAudioLoaded"
+                        @timeupdate="onTimeUpdate"
+                        @ended="onAudioEnded"
+                        preload="metadata"
+                        style="display: none"
+                      ></audio>
+                    </div>
+                  </div>
+                </div>
+              </el-card>
+            </el-col>
+          </el-row>
+        </el-main>
+      </el-container>
+
+      <!-- 翻译语言选择弹窗 -->
+      <el-dialog
+        v-model="translateDialogVisible"
+        title="选择翻译目标语言"
+        width="50%"
+        :before-close="handleTranslateDialogClose"
+      >
+        <div class="language-selection-container">
+          <el-select
+            v-model="selectedLanguages"
+            multiple
+            filterable
+            placeholder="请选择目标语言"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="lang in availableLanguages"
+              :key="lang.code"
+              :label="lang.name"
+              :value="lang.code"
+            >
+              <span>{{ lang.name }}</span>
+            </el-option>
+          </el-select>
+        </div>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="translateDialogVisible = false">取消</el-button>
+            <el-button
+              type="primary"
+              @click="executeTranslation"
+              :loading="isTranslating"
+              :disabled="selectedLanguages.length === 0"
+            >
+              开始翻译
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+
+      <!-- 音频播放弹窗 -->
+      <el-dialog
+        v-model="audioPlayerDialogVisible"
+        :title="`播放音频: ${currentAudioTitle}`"
+        width="50%"
+      >
+        <audio controls class="dialog-audio-control" ref="dialogAudioPlayer">
+          <source :src="currentAudioUrl" type="audio/wav" />
+          您的浏览器不支持音频播放。
+        </audio>
+      </el-dialog>
+
+      <!-- 语音生成设置弹窗 -->
+      <el-dialog v-model="speechDialogVisible" title="语音生成设置" width="50%">
+        <el-form :model="speechSettings" label-width="120px">
+          <el-form-item label="模型">
+            <el-select
+              v-model="speechSettings.model"
+              placeholder="选择模型"
+              style="width: 220px"
+            >
+              <el-option label="谷歌" value="google"></el-option>
+              <el-option label="阿里云" value="aliyun"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item
+            label="开启段落间隔"
+            v-if="speechSettings.model === 'google'"
+          >
+            <el-switch v-model="speechSettings.enableParagraphInterval" />
+          </el-form-item>
+          <el-form-item label="语音类型">
+            <div class="voice-selection-container">
+              <el-select
+                v-model="speechSettings.voiceName"
+                placeholder="请选择语音类型"
+                filterable
+                class="voice-select"
+              >
+                <el-option
+                  v-for="voice in availableVoices"
+                  :key="voice.name"
+                  :label="voice.displayName"
+                  :value="voice.name"
+                ></el-option>
+              </el-select>
+              <el-button
+                type="primary"
+                :loading="voiceSampleLoading"
+                @click="playVoiceSample"
+                :disabled="!speechSettings.voiceName"
+                class="voice-preview-btn"
+              >
+                <el-icon><Volume /></el-icon>
+                试听
+              </el-button>
+            </div>
+          </el-form-item>
+          <el-form-item
+            label="段落间隔"
+            style="align-items: center"
+            v-if="speechSettings.model === 'google'"
+          >
+            <div class="interval-setting-container">
+              <el-slider
+                v-model="speechSettings.paragraphInterval"
+                :disabled="!speechSettings.enableParagraphInterval"
+                :min="0"
+                :max="3"
+                :step="0.1"
+                :format-tooltip="(val) => val + '秒'"
+                show-input
+                :show-input-controls="false"
+                class="interval-slider"
+              />
+              <div class="interval-description">
+                <el-text type="info" size="small">
+                  当开启后，文本中的换行会插入指定时长的静音间隔
+                </el-text>
+              </div>
+            </div>
+          </el-form-item>
+          <el-form-item label="使用内容命名">
+            <el-checkbox v-model="speechSettings.useContentFileName">
+              使用中文原始文案作为下载文件名
+            </el-checkbox>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="speechDialogVisible = false">取消</el-button>
+            <el-button
+              type="primary"
+              @click="confirmGenerateSpeech"
+              :loading="isGeneratingSpeech"
+            >
+              确认生成
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+
+      <!-- 新增翻译内容弹窗 -->
+      <el-dialog
+        v-model="manualTranslationDialogVisible"
+        title="新增翻译"
+        width="50%"
+      >
+        <el-form :model="manualTranslationForm" label-width="120px">
+          <el-form-item label="翻译语言（可选）">
+            <el-select
+              v-model="manualTranslationForm.language"
+              placeholder="不选择则自动识别"
+              filterable
+              clearable
+              style="width: 100%"
+            >
+              <el-option
+                v-for="lang in availableLanguages"
+                :key="lang.code"
+                :label="lang.name"
+                :value="lang.code"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="翻译内容">
+            <el-input
+              v-model="manualTranslationForm.text"
+              type="textarea"
+              :autosize="{ minRows: 6, maxRows: 12 }"
+              placeholder="请输入要添加的翻译内容..."
+            />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="manualTranslationDialogVisible = false"
+              >取消</el-button
+            >
+            <el-button type="primary" @click="confirmAddManualTranslation"
+              >确认添加</el-button
+            >
+          </span>
+        </template>
+      </el-dialog>
     </div>
 
     <script src="script.js"></script>
-</body>
+  </body>
 </html>

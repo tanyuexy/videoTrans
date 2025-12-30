@@ -1,17 +1,35 @@
-import {
-  GoogleGenAI,
-} from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
-let apiKey =
-  (process.env.GEMINI_API_KEY || "").trim();
+let apiKey = (process.env.GEMINI_API_KEY || "").trim();
 
 // 初始化Gemini客户端
 const genAI = new GoogleGenAI({ apiKey: apiKey });
 
 // 支持的语言配置
 const SUPPORTED_LANGUAGES = [
-  'US', 'AR', 'DE', 'ES', 'FR', 'ID', 'IT', 'JP', 'KR', 
-  'NL', 'PL', 'TH', 'TR', 'TW', 'VN', 'RU', 'PT', 'SV', 'FI', 'MS', 'IN',"HI","BN"
+  "US",
+  "AR",
+  "DE",
+  "ES",
+  "FR",
+  "ID",
+  "IT",
+  "JP",
+  "KR",
+  "RO",
+  "NL",
+  "PL",
+  "TH",
+  "TR",
+  "TW",
+  "VN",
+  "RU",
+  "PT",
+  "SV",
+  "FI",
+  "MS",
+  "HI",
+  "BN"
 ];
 
 /**
@@ -68,8 +86,8 @@ ${text}
 
     // 调用Gemini API进行翻译
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash-lite",
-      contents: prompt,
+      model: "gemini-2.5-flash-lite",
+      contents: prompt
     });
 
     if (!response || !response.text) {
@@ -82,10 +100,14 @@ ${text}
       throw new Error("翻译结果为空");
     }
 
-    console.log(`翻译完成: ${text.substring(0, 50)}... → ${translatedText.substring(0, 50)}...`);
-    
-    return translatedText;
+    console.log(
+      `翻译完成: ${text.substring(0, 50)}... → ${translatedText.substring(
+        0,
+        50
+      )}...`
+    );
 
+    return translatedText;
   } catch (error) {
     console.error("文本翻译错误:", error);
 
@@ -120,32 +142,88 @@ async function translateTexts(texts, targetLanguage) {
     }
 
     const results = [];
-    
+
     for (let i = 0; i < texts.length; i++) {
       const text = texts[i];
       console.log(`正在翻译第 ${i + 1}/${texts.length} 个文本...`);
-      
+
       const translatedText = await translateText(text, targetLanguage);
       results.push(translatedText);
-      
+
       // 添加小延迟避免API频率限制
       if (i < texts.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
     return results;
-
   } catch (error) {
     console.error("批量翻译错误:", error);
     throw new Error(`批量翻译失败: ${error.message}`);
   }
 }
 
-export { 
-  translateText, 
-  translateTexts, 
-  getSupportedLanguages, 
+/**
+ * 使用Gemini 2.5生成简短标题（用于文件命名）
+ * @param {string} text - 原始内容文本
+ * @returns {Promise<string>} 简短标题（不包含扩展名）
+ */
+async function generateShortTitle(text) {
+  try {
+    if (!apiKey) {
+      throw new Error("未设置GEMINI_API_KEY环境变量");
+    }
+
+    if (!text || text.trim().length === 0) {
+      throw new Error("标题生成文本不能为空");
+    }
+
+    console.log("正在生成文件命名标题...");
+
+    const prompt = `你是一个为音频文件生成简短命名的助手。
+请根据下方内容，生成一个【简短的中文标题】用于文件名。
+要求：
+1. 不要超过12个中文字符。
+2. 不要包含标点符号和特殊字符，只能包含中文、英文、数字和空格。
+3. 不要带引号，不要带前后说明性文字，只输出标题本身。
+
+内容：
+${text}`;
+
+    const response = await genAI.models.generateContent({
+      model: "gemini-2.5-flash-lite",
+      contents: prompt
+    });
+
+    if (!response || !response.text) {
+      throw new Error("Gemini 标题生成返回空结果");
+    }
+
+    let title = response.text.trim();
+
+    // 基础清洗：去掉换行和不允许的字符
+    title = title.replace(/[\r\n]+/g, " ");
+    title = title.replace(/[^0-9A-Za-z\u4e00-\u9fff ]+/g, "");
+    title = title.replace(/\s+/g, " ").trim();
+
+    if (!title || title.length === 0) {
+      throw new Error("标题生成结果为空");
+    }
+
+    console.log("标题生成完成:", title);
+
+    return title;
+  } catch (error) {
+    console.error("标题生成错误:", error);
+    throw error;
+  }
+}
+
+export {
+  translateText,
+  translateTexts,
+  getSupportedLanguages,
   isLanguageSupported,
-  SUPPORTED_LANGUAGES
+  SUPPORTED_LANGUAGES,
+  generateShortTitle
 };
